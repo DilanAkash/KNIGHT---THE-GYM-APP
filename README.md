@@ -66,6 +66,31 @@ npm run typecheck  # tsc --noEmit
 npm run assets     # regenerate app icons and the rest-timer chime
 ```
 
+### Don't rebuild for a JS change
+
+A full EAS build can sit in the free-tier queue for over an hour. You rarely
+need one. In order of how fast they are:
+
+**Testing a change — Expo Go, no build at all.** Every native module this app
+uses ships inside Expo Go, so `npm start` and a QR scan runs the current code
+instantly.
+
+**Updating an app already installed on your phone — an over-the-air push:**
+
+```bash
+npm run update
+```
+
+That takes about thirty seconds and no queue. The installed APK picks the change
+up next time it launches. Works for anything written in JS or TS, which is
+almost everything: screens, logic, styling, the exercise library, routines.
+
+**A full APK build is only needed when the native side changes** — adding or
+removing an `expo-*` / `react-native-*` package, or editing `app.json`'s
+plugins, permissions, icon or app name. `runtimeVersion` is pinned to
+`appVersion`, so bumping `version` in `app.json` also cuts existing installs off
+from further updates until they take a new build.
+
 ### Getting an installable APK
 
 Built in Expo's cloud, so no Android SDK is needed locally. One-time setup:
