@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { haptics } from '@/lib/haptics';
+import { sounds } from '@/lib/sound';
 
 export interface RestTimerState {
   /** Epoch ms the timer finishes at, or null when idle. */
@@ -32,6 +33,8 @@ export const useRestTimer = create<RestTimerState>((set, get) => ({
 
   start: (seconds, context = null) => {
     if (seconds <= 0) return;
+    // Warm the audio players now so the chime is not late in 90 seconds.
+    sounds.prepare();
     set({
       endsAt: Date.now() + seconds * 1000,
       durationSeconds: seconds,
@@ -68,11 +71,15 @@ export const useRestTimer = create<RestTimerState>((set, get) => ({
 
     if (next === 0) {
       haptics.celebrate();
+      sounds.restOver();
       set({ remaining: 0, endsAt: null, finished: true });
       return;
     }
     // Countdown pulses on the last three seconds so you can feel it land.
-    if (next <= 3) haptics.light();
+    if (next <= 3) {
+      haptics.light();
+      sounds.tick();
+    }
     set({ remaining: next });
   },
 }));

@@ -561,3 +561,106 @@ export async function listWorkouts(limit = 50, offset = 0): Promise<WorkoutSumma
     prCount: r.pr_count,
   }));
 }
+
+export interface CompletedSummary {
+  workout: Workout;
+  totalSets: number;
+  totalReps: number;
+  exerciseCount: number;
+  records: NewRecord[];
+  /** Per-exercise breakdown for the summary list. */
+  breakdown: { name: string; sets: number; volume: number; topSet: string }[];
+}
+
+/**
+ * Rebuilds a finished session for the summary screen.
+ *
+ * Queried fresh rather than passed through navigation params so the screen
+ * also works when opened later from history.
+ */
+export async function getCompletedSummary(workoutId: string): Promise<CompletedSummary | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<WorkoutRow>('SELECT * FROM workouts WHERE id = ?;', [workoutId]);
+  if (!row) return null;
+
+  const sets = await db.getAllAsync<{
+    name: string;
+    weight: number;
+    reps: number;
+    type: string;
+    exercise_id: string;
+  }>(
+    `SELECT e.name, s.weight, s.reps, s.type, we.exercise_id
+       FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       JOIN exercises e ON e.id = we.exercise_id
+      WHERE we.workout_id = ? AND s.completed = 1
+      ORDER BY we.sort_order ASC, s.set_index ASC;`,
+    [workoutId],
+  );
+
+  const grouped = new Map<string, { name: string; sets: number; volume: number; best: number; bestReps: number }>();
+  let totalReps = 0;
+
+  for (const set of sets) {
+    totalReps += set.reps;
+    const entry = grouped.get(set.exercise_id) ?? {
+      name: set.name,
+      sets: 0,
+      volume: 0,
+      best: 0,
+      bestReps: 0,
+    };
+    entry.sets += 1;
+    entry.volume += set.weight * set.reps;
+    if (set.weight > entry.best) {
+      entry.best = set.weight;
+      entry.bestReps = set.reps;
+    }
+    grouped.set(set.exercise_id, entry);
+  }
+
+  const recordRows = await db.getAllAsync<{
+    id: string;
+    exercise_id: string;
+    type: string;
+    value: number;
+    weight: number;
+    reps: number;
+    achieved_at: number;
+    name: string;
+  }>(
+    `SELECT pr.*, e.name FROM personal_records pr
+       JOIN exercises e ON e.id = pr.exercise_id
+      WHERE pr.workout_id = ?
+      ORDER BY pr.value DESC;`,
+    [workoutId],
+  );
+
+  return {
+    workout: mapWorkout(row),
+    totalSets: sets.length,
+    totalReps,
+    exerciseCount: grouped.size,
+    records: recordRows.map((r) => ({
+      id: r.id,
+      exerciseId: r.exercise_id,
+      type: r.type as PrType,
+      value: r.value,
+      weight: r.weight,
+      reps: r.reps,
+      workoutId,
+      achievedAt: r.achieved_at,
+      exerciseName: r.name,
+      previousValue: null,
+    })),
+    breakdown: [...grouped.values()].map((entry) => ({
+      name: entry.name,
+      sets: entry.sets,
+      volume: entry.volume,
+      topSet: entry.best > 0 ? `${trimNumber(entry.best)} × ${entry.bestReps}` : `${entry.bestReps} reps`,
+    })),
+  };
+}
+
+const trimNumber = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));

@@ -2,8 +2,9 @@ import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Appear } from '@/components/ui/Appear';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Section } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
@@ -103,7 +104,7 @@ export default function TodayScreen() {
         ]}
       >
         {activeWorkout ? (
-          <Animated.View entering={FadeInDown.springify().damping(20)}>
+          <Appear>
             <PressableScale
               onPress={() => router.push(`/workout/${activeWorkout.id}`)}
               scaleTo={0.98}
@@ -128,7 +129,7 @@ export default function TodayScreen() {
                 <Icon name="arrowRight" size={22} color={palette.textOnAccent} strokeWidth={2.2} />
               </View>
             </PressableScale>
-          </Animated.View>
+          </Appear>
         ) : (
           <NextSessionCard
             routineName={routineName}
@@ -278,14 +279,14 @@ export default function TodayScreen() {
         </Section>
 
         {overview && overview.totalWorkouts === 0 ? (
-          <Animated.View entering={FadeIn.delay(300)}>
+          <Appear from="fade" delay={300}>
             <EmptyState
               icon="bolt"
               title="Nothing logged yet"
               message="Start your first session and KNIGHT begins tracking volume, records and muscle balance automatically."
               compact
             />
-          </Animated.View>
+          </Appear>
         ) : overview?.lastWorkoutAt ? (
           <Text variant="caption" color="tertiary" align="center">
             Last session {formatDurationLong((Date.now() - overview.lastWorkoutAt) / 1000)} ago
@@ -329,7 +330,7 @@ function NextSessionCard({
   }
 
   return (
-    <Animated.View entering={FadeInDown.springify().damping(19)}>
+    <Appear>
       <View style={styles.hero}>
         <LinearGradient
           colors={['rgba(199,255,60,0.10)', 'rgba(199,255,60,0.02)', 'transparent']}
@@ -392,7 +393,7 @@ function NextSessionCard({
           }}
         />
       </View>
-    </Animated.View>
+    </Appear>
   );
 }
 

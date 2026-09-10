@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Appear } from '@/components/ui/Appear';
 import { Text } from '@/components/ui/Text';
 import { addDays, dateKey, monthShort, startOfDay, startOfWeek } from '@/lib/date';
 import { heatRamp, palette, space } from '@/theme';
@@ -76,13 +76,12 @@ export function ConsistencyGrid({ days, weeks = 20, cell = 13 }: ConsistencyGrid
               </Text>
             ))}
           </View>
-          <View style={styles.grid}>
+          <Appear from="fade" style={styles.grid}>
             {columns.map((column, columnIndex) => (
               <View key={columnIndex} style={{ gap: 3 }}>
                 {column.map((day) => (
-                  <Animated.View
+                  <View
                     key={day.key}
-                    entering={FadeIn.duration(220).delay(Math.min(columnIndex * 12, 320))}
                     style={{
                       width: cell,
                       height: cell,
@@ -95,7 +94,7 @@ export function ConsistencyGrid({ days, weeks = 20, cell = 13 }: ConsistencyGrid
                 ))}
               </View>
             ))}
-          </View>
+          </Appear>
         </View>
       </ScrollView>
     </View>

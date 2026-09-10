@@ -3,6 +3,7 @@ import { getSetting, setSetting } from '@/db/client';
 import type { WeightUnit } from '@/db/types';
 import { DEFAULT_PLATES_KG, DEFAULT_PLATES_LB } from '@/lib/strength';
 import { setHapticsEnabled } from '@/lib/haptics';
+import { setSoundEnabled } from '@/lib/sound';
 
 export interface NutritionTargets {
   calories: number;
@@ -104,7 +105,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
     }
 
     const hapticsOn = bool(haptics, true);
+    const soundOn = bool(sound, true);
     setHapticsEnabled(hapticsOn);
+    setSoundEnabled(soundOn);
 
     set({
       hydrated: true,
@@ -112,7 +115,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       barWeight: num(barWeight, unit === 'lb' ? 45 : 20),
       defaultRestSeconds: num(rest, 120),
       restTimerAutoStart: bool(autoStart, true),
-      restTimerSound: bool(sound, true),
+      restTimerSound: soundOn,
       hapticsOn,
       keepAwake: bool(keepAwake, true),
       weeklyGoal: num(goal, 6),
@@ -147,6 +150,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
 
   setRestSound: async (value) => {
     set({ restTimerSound: value });
+    setSoundEnabled(value);
     await setSetting('rest_sound', value ? '1' : '0');
   },
 

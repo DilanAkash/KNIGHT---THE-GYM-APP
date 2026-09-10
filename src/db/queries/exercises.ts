@@ -133,3 +133,89 @@ export async function getPreviousSets(exerciseId: string, excludeWorkoutId?: str
     [previous.id],
   );
 }
+
+export interface ExerciseSessionEntry {
+  workoutId: string;
+  workoutName: string;
+  startedAt: number;
+  sets: { weight: number; reps: number; type: string }[];
+  volume: number;
+  topSet: { weight: number; reps: number } | null;
+}
+
+/** Every past session of one exercise, newest first. */
+export async function getExerciseHistory(
+  exerciseId: string,
+  limit = 30,
+): Promise<ExerciseSessionEntry[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    workout_id: string;
+    workout_name: string;
+    started_at: number;
+    weight: number;
+    reps: number;
+    type: string;
+  }>(
+    `SELECT w.id AS workout_id, w.name AS workout_name, w.started_at, s.weight, s.reps, s.type
+       FROM sets s
+       JOIN workout_exercises we ON we.id = s.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE we.exercise_id = ? AND w.status = 'completed' AND s.completed = 1
+      ORDER BY w.started_at DESC, s.set_index ASC;`,
+    [exerciseId],
+  );
+
+  const sessions = new Map<string, ExerciseSessionEntry>();
+  for (const row of rows) {
+    const entry = sessions.get(row.workout_id) ?? {
+      workoutId: row.workout_id,
+      workoutName: row.workout_name,
+      startedAt: row.started_at,
+      sets: [],
+      volume: 0,
+      topSet: null,
+    };
+    entry.sets.push({ weight: row.weight, reps: row.reps, type: row.type });
+    entry.volume += row.weight * row.reps;
+    if (row.type !== 'warmup' && (!entry.topSet || row.weight > entry.topSet.weight)) {
+      entry.topSet = { weight: row.weight, reps: row.reps };
+    }
+    sessions.set(row.workout_id, entry);
+  }
+
+  return [...sessions.values()].slice(0, limit);
+}
+
+export interface ExerciseRecords {
+  bestE1rm: number;
+  bestWeight: number;
+  bestWeightReps: number;
+  bestVolume: number;
+  totalSessions: number;
+}
+
+export async function getExerciseRecords(exerciseId: string): Promise<ExerciseRecords> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ type: string; value: number; weight: number; reps: number }>(
+    'SELECT type, MAX(value) AS value, weight, reps FROM personal_records WHERE exercise_id = ? GROUP BY type;',
+    [exerciseId],
+  );
+  const sessions = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(DISTINCT we.workout_id) AS count
+       FROM workout_exercises we
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE we.exercise_id = ? AND w.status = 'completed';`,
+    [exerciseId],
+  );
+
+  const byType = new Map(rows.map((r) => [r.type, r]));
+  const weight = byType.get('weight');
+  return {
+    bestE1rm: byType.get('e1rm')?.value ?? 0,
+    bestWeight: weight?.value ?? 0,
+    bestWeightReps: weight?.reps ?? 0,
+    bestVolume: byType.get('volume')?.value ?? 0,
+    totalSessions: sessions?.count ?? 0,
+  };
+}

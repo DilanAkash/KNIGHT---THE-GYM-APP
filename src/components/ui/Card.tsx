@@ -1,10 +1,10 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Appear } from './Appear';
 import { PressableScale } from './Pressable';
 import { Text } from './Text';
-import { elevation, palette, radius, space, stagger } from '@/theme';
+import { elevation, palette, radius, space } from '@/theme';
 
 export interface CardProps {
   children: ReactNode;
@@ -63,11 +63,7 @@ export function Card({
 
   if (!animate) return content;
 
-  return (
-    <Animated.View entering={FadeInDown.springify().damping(18).delay(stagger(index)).withInitialValues({ transform: [{ translateY: 14 }] })}>
-      {content}
-    </Animated.View>
-  );
+  return <Appear index={index}>{content}</Appear>;
 }
 
 /** Section wrapper: an overline label, optional action, then the content. */

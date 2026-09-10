@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
+import { Appear } from './Appear';
 import { Button } from './Button';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
@@ -27,10 +27,7 @@ export function EmptyState({
   style,
 }: EmptyStateProps) {
   return (
-    <Animated.View
-      entering={FadeIn.duration(300)}
-      style={[styles.empty, compact ? styles.emptyCompact : null, style]}
-    >
+    <Appear from="fade" style={[styles.empty, compact ? styles.emptyCompact : null, style]}>
       <View style={styles.emptyIcon}>
         <Icon name={icon} size={compact ? 20 : 26} color={palette.textTertiary} />
       </View>
@@ -47,7 +44,7 @@ export function EmptyState({
       {actionLabel && onAction ? (
         <Button label={actionLabel} onPress={onAction} variant="secondary" size="sm" />
       ) : null}
-    </Animated.View>
+    </Appear>
   );
 }
 
@@ -75,11 +72,7 @@ export function Banner({
 }) {
   const config = TONES[tone];
   return (
-    <Animated.View
-      entering={FadeInDown.springify().damping(20)}
-      exiting={FadeOut.duration(160)}
-      style={[styles.banner, { backgroundColor: config.bg, borderColor: config.border }]}
-    >
+    <Appear style={[styles.banner, { backgroundColor: config.bg, borderColor: config.border }]}>
       <Icon name={icon ?? config.icon} size={18} color={config.color} />
       <View style={styles.bannerText}>
         <Text variant="subheading" style={{ color: config.color }}>
@@ -92,7 +85,7 @@ export function Banner({
         ) : null}
       </View>
       {action}
-    </Animated.View>
+    </Appear>
   );
 }
 
@@ -107,8 +100,7 @@ export function Skeleton({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Animated.View
-      entering={FadeIn}
+    <View
       style={[
         {
           width: width ?? '100%',

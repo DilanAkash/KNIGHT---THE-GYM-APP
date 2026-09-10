@@ -1,5 +1,12 @@
-import { useEffect } from 'react';
-import { StyleSheet, TextInput, type TextStyle, type StyleProp } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import {
+  StyleSheet,
+  TextInput,
+  View,
+  Text as RNText,
+  type TextStyle,
+  type StyleProp,
+} from 'react-native';
 import Animated, {
   useAnimatedProps,
   useSharedValue,
@@ -26,12 +33,25 @@ export interface AnimatedNumberProps {
   grouped?: boolean;
 }
 
+function format(value: number, decimals: number, grouped: boolean, prefix: string, suffix: string) {
+  const fixed = value.toFixed(decimals);
+  if (!grouped) return `${prefix}${fixed}${suffix}`;
+  const [whole, fraction] = fixed.split('.');
+  const withSeparators = (whole ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${prefix}${fraction ? `${withSeparators}.${fraction}` : withSeparators}${suffix}`;
+}
+
 /**
  * Counts to its value instead of snapping.
  *
  * Driven entirely on the UI thread by writing to a read-only TextInput — a
- * React state update per frame would drop the count to ~15fps on a mid-range
- * Android phone, which is exactly the device this app runs on in a gym.
+ * React state update per frame would drop the count to ~15fps on the mid-range
+ * Android phone this app actually runs on in a gym.
+ *
+ * A TextInput has no intrinsic content width and will happily eat every spare
+ * pixel of a flex row, shoving whatever sits next to it off screen. So a hidden
+ * Text holding the final value sets the layout width and the animated input is
+ * laid over it. Counting up never exceeds the final width, so nothing clips.
  */
 export function AnimatedNumber({
   value,
@@ -53,38 +73,56 @@ export function AnimatedNumber({
   }, [value, bouncy, animated]);
 
   const animatedProps = useAnimatedProps(() => {
-    const current = animated.value;
-    const fixed = current.toFixed(decimals);
-    let text = fixed;
-
-    if (grouped) {
-      const [whole, fraction] = fixed.split('.');
-      const withSeparators = (whole ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-      text = fraction ? `${withSeparators}.${fraction}` : withSeparators;
-    }
-
-    return { text: `${prefix}${text}${suffix}`, defaultValue: `${prefix}${text}${suffix}` };
+    const text = format(animated.value, decimals, grouped, prefix, suffix);
+    return { text, defaultValue: text };
   });
 
+  const target = useMemo(
+    () => format(value, decimals, grouped, prefix, suffix),
+    [value, decimals, grouped, prefix, suffix],
+  );
+
+  const textStyle = [typography[variant], styles.text, { color }, style];
+
   return (
-    <AnimatedTextInput
-      editable={false}
-      // Static fallback for screen readers, which don't see the animated prop.
-      accessibilityLabel={`${prefix}${value.toFixed(decimals)}${suffix}`}
-      underlineColorAndroid="transparent"
-      animatedProps={animatedProps}
-      style={[typography[variant], styles.input, { color }, style]}
-    />
+    <View style={styles.wrap}>
+      <RNText style={[textStyle, styles.ghost]} numberOfLines={1} accessibilityLabel={target}>
+        {target}
+      </RNText>
+      <AnimatedTextInput
+        editable={false}
+        pointerEvents="none"
+        // The animated prop is invisible to screen readers; the ghost above
+        // carries the accessible value.
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        underlineColorAndroid="transparent"
+        animatedProps={animatedProps}
+        style={[textStyle, styles.input]}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  input: {
+  wrap: {
+    position: 'relative',
+  },
+  text: {
     padding: 0,
     margin: 0,
-    // Android TextInput reserves vertical padding we never want here.
     paddingVertical: 0,
     includeFontPadding: false,
+  },
+  ghost: {
+    opacity: 0,
+  },
+  input: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     textAlignVertical: 'center',
   },
 });

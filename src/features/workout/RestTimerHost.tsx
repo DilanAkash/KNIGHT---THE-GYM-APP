@@ -1,7 +1,12 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { IconButton } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/Pressable';
@@ -9,7 +14,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Text } from '@/components/ui/Text';
 import { useRestTimer } from '@/store/restTimer';
 import { formatDuration } from '@/lib/strength';
-import { layout, palette, radius, space } from '@/theme';
+import { layout, palette, radius, space, spring, timing } from '@/theme';
 
 /**
  * Global rest timer.
@@ -22,6 +27,7 @@ export function RestTimerHost() {
   const { endsAt, remaining, durationSeconds, context, tick, stop, adjust } = useRestTimer();
   const insets = useSafeAreaInsets();
   const active = endsAt !== null;
+  const reveal = useSharedValue(0);
 
   useEffect(() => {
     if (!active) return;
@@ -30,6 +36,15 @@ export function RestTimerHost() {
     return () => clearInterval(interval);
   }, [active, tick]);
 
+  useEffect(() => {
+    reveal.value = active ? withSpring(1, spring.sheet) : withTiming(0, timing.exit);
+  }, [active, reveal]);
+
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
+    transform: [{ translateY: (1 - reveal.value) * 90 }],
+  }));
+
   if (!active) return null;
 
   const progress = durationSeconds > 0 ? remaining / durationSeconds : 0;
@@ -37,11 +52,10 @@ export function RestTimerHost() {
 
   return (
     <Animated.View
-      entering={SlideInDown.springify().damping(22)}
-      exiting={SlideOutDown.duration(200)}
       style={[
         styles.wrap,
         { bottom: Math.max(insets.bottom, 10) + layout.tabBarHeight + space.sm },
+        revealStyle,
       ]}
       pointerEvents="box-none"
     >

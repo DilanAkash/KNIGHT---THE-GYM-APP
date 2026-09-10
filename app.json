@@ -14,7 +14,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0A0B0D"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.swizzknight.knight"
@@ -53,7 +55,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#0A0B0D"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true
