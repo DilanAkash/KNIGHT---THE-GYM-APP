@@ -3,7 +3,15 @@ import { useFocusEffect } from 'expo-router';
 import { getDb, getSetting } from '@/db/client';
 import { getRoutineDetail, listRoutines, type RoutineDayDetail } from '@/db/queries/routines';
 import { getActiveWorkout } from '@/db/queries/workouts';
-import { getOverview, getWeeklyVolume, listPersonalRecords, type RecordEntry, type TrainingOverview, type VolumePoint } from '@/db/queries/stats';
+import {
+  getOverview,
+  getTrainingDays,
+  getWeeklyVolume,
+  listPersonalRecords,
+  type RecordEntry,
+  type TrainingOverview,
+  type VolumePoint,
+} from '@/db/queries/stats';
 import { getDayNutrition, type DayNutrition } from '@/db/queries/nutrition';
 import type { Workout } from '@/db/types';
 
@@ -16,6 +24,8 @@ export interface TodayData {
   weekly: VolumePoint[];
   recentRecords: RecordEntry[];
   nutrition: DayNutrition | null;
+  /** date key -> volume, for the week strip. */
+  trainingDays: Map<string, number>;
   reload: () => Promise<void>;
 }
 
@@ -63,17 +73,20 @@ export function useToday(): TodayData {
     weekly: [],
     recentRecords: [],
     nutrition: null,
+    trainingDays: new Map(),
   });
 
   const reload = useCallback(async () => {
-    const [overview, activeWorkout, next, weekly, records, nutrition] = await Promise.all([
-      getOverview(),
-      getActiveWorkout(),
-      resolveNextDay(),
-      getWeeklyVolume(10),
-      listPersonalRecords('e1rm'),
-      getDayNutrition(),
-    ]);
+    const [overview, activeWorkout, next, weekly, records, nutrition, trainingDays] =
+      await Promise.all([
+        getOverview(),
+        getActiveWorkout(),
+        resolveNextDay(),
+        getWeeklyVolume(10),
+        listPersonalRecords('e1rm'),
+        getDayNutrition(),
+        getTrainingDays(14),
+      ]);
 
     setState({
       loading: false,
@@ -84,6 +97,7 @@ export function useToday(): TodayData {
       weekly,
       recentRecords: records.slice(0, 3),
       nutrition,
+      trainingDays,
     });
   }, []);
 

@@ -39,6 +39,29 @@ export function daysBetween(a: Date, b: Date): number {
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAYS_LONG = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const MONTHS_LONG = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function weekdayShort(date: Date): string {
@@ -59,6 +82,11 @@ export function friendlyDate(date: Date, now: Date = new Date()): string {
   const sameYear = date.getFullYear() === now.getFullYear();
   const base = `${weekdayShort(date)} ${date.getDate()} ${monthShort(date)}`;
   return sameYear ? base : `${base} ${date.getFullYear()}`;
+}
+
+/** "Tuesday 10 September" — the date as you'd say it out loud. */
+export function longDate(date: Date = new Date()): string {
+  return `${WEEKDAYS_LONG[date.getDay()]} ${date.getDate()} ${MONTHS_LONG[date.getMonth()]}`;
 }
 
 export function timeOfDay(date: Date): string {

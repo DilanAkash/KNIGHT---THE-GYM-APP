@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Keyboard, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -16,24 +16,44 @@ import { PlateSheet } from '@/features/workout/PlateSheet';
 import { useWorkout } from '@/store/workout';
 import { useSettings } from '@/store/settings';
 import { useRestTimer } from '@/store/restTimer';
+import { useKeyboardHeight } from '@/lib/useKeyboard';
 import { formatCompact, formatDuration } from '@/lib/strength';
 import { haptics } from '@/lib/haptics';
 import { layout, palette, radius, space } from '@/theme';
 
+const FOOTER_HEIGHT = 56 + 12 + 12;
+
 export default function WorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
 
-  const { detail, loading, previous, prSets, load } = useWorkout();
-  const store = useWorkout();
+  // Narrow selectors: subscribing to the whole store re-rendered this screen —
+  // and every exercise card under it — on each keystroke.
+  const loading = useWorkout((state) => state.loading);
+  const workoutId = useWorkout((state) => state.detail?.id ?? null);
+  const workoutName = useWorkout((state) => state.detail?.name ?? '');
+  const startedAt = useWorkout((state) => state.detail?.startedAt ?? 0);
+  // A joined string of ids only changes when exercises are added or removed,
+  // never when a value inside one of them is edited.
+  const exerciseKey = useWorkout(
+    (state) => state.detail?.exercises.map((exercise) => exercise.id).join('|') ?? '',
+  );
+
+  const load = useWorkout((state) => state.load);
+  const discard = useWorkout((state) => state.discard);
+  const finish = useWorkout((state) => state.finish);
+  const setExerciseRest = useWorkout((state) => state.setExerciseRest);
+
   const { unit, keepAwake, defaultRestSeconds } = useSettings();
-  const restTimer = useRestTimer();
+  const restTimerActive = useRestTimer((state) => state.endsAt !== null);
 
-  const [elapsed, setElapsed] = useState(0);
   const [plateFor, setPlateFor] = useState<number | null>(null);
   const [restEditing, setRestEditing] = useState<{ id: string; seconds: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
   const loadedFor = useRef<string | null>(null);
+
+  const exerciseIds = useMemo(() => (exerciseKey ? exerciseKey.split('|') : []), [exerciseKey]);
 
   useKeepAwakeWhen(keepAwake);
 
@@ -43,17 +63,15 @@ export default function WorkoutScreen() {
     void load(id);
   }, [id, load]);
 
-  // Recomputed from startedAt rather than incremented, so the clock stays
-  // correct after the app has been backgrounded.
-  useEffect(() => {
-    if (!detail) return;
-    const update = () => setElapsed(Math.max(0, Math.floor((Date.now() - detail.startedAt) / 1000)));
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [detail]);
-
-  const stats = store.stats();
+  const openPlates = useCallback((weight: number) => setPlateFor(weight), []);
+  const openRest = useCallback(
+    (workoutExerciseId: string, seconds: number) =>
+      setRestEditing({ id: workoutExerciseId, seconds: seconds || defaultRestSeconds }),
+    [defaultRestSeconds],
+  );
+  const openExercise = useCallback((exerciseId: string) => {
+    router.push(`/exercise/${exerciseId}`);
+  }, []);
 
   const confirmDiscard = useCallback(() => {
     Alert.alert('Discard session?', 'Everything logged in this session will be deleted.', [
@@ -62,17 +80,20 @@ export default function WorkoutScreen() {
         text: 'Discard',
         style: 'destructive',
         onPress: async () => {
-          await store.discard();
+          await discard();
           router.replace('/(tabs)');
         },
       },
     ]);
-  }, [store]);
+  }, [discard]);
 
   const onFinish = useCallback(async () => {
     if (finishing) return;
+    Keyboard.dismiss();
 
-    if (stats.completedSets === 0) {
+    const { completedSets, totalSets } = useWorkout.getState().stats();
+
+    if (completedSets === 0) {
       Alert.alert('Nothing logged', 'Complete at least one set, or discard the session.', [
         { text: 'Keep going', style: 'cancel' },
         { text: 'Discard', style: 'destructive', onPress: confirmDiscard },
@@ -80,17 +101,17 @@ export default function WorkoutScreen() {
       return;
     }
 
-    const incomplete = stats.totalSets - stats.completedSets;
     const finalise = async () => {
       setFinishing(true);
       try {
-        const result = await store.finish();
+        const result = await finish();
         if (result) router.replace(`/workout/summary/${result.workoutId}`);
       } finally {
         setFinishing(false);
       }
     };
 
+    const incomplete = totalSets - completedSets;
     if (incomplete > 0) {
       Alert.alert(
         'Finish session?',
@@ -105,9 +126,9 @@ export default function WorkoutScreen() {
       return;
     }
     await finalise();
-  }, [confirmDiscard, finishing, stats.completedSets, stats.totalSets, store]);
+  }, [confirmDiscard, finishing, finish]);
 
-  if (loading || !detail) {
+  if (loading || !workoutId) {
     return (
       <View style={styles.root}>
         <View style={{ paddingTop: insets.top + 60 }}>
@@ -123,6 +144,8 @@ export default function WorkoutScreen() {
     );
   }
 
+  const keyboardOpen = keyboardHeight > 0;
+
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
@@ -137,7 +160,7 @@ export default function WorkoutScreen() {
           />
           <View style={styles.headerTitle}>
             <Text variant="subheading" numberOfLines={1} align="center">
-              {detail.name}
+              {workoutName}
             </Text>
           </View>
           <PressableScale onPress={confirmDiscard} haptic="light" hitSlop={10} style={styles.discard}>
@@ -148,104 +171,85 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.liveStats}>
-          <LiveStat icon="clock" value={formatDuration(elapsed)} label="elapsed" mono />
+          <SessionClock startedAt={startedAt} />
           <View style={styles.statDivider} />
-          <LiveStat
-            icon="barChart"
-            value={`${formatCompact(stats.volume)} ${unit}`}
-            label="volume"
-            mono
-          />
-          <View style={styles.statDivider} />
-          <LiveStat
-            icon="check"
-            value={`${stats.completedSets}/${stats.totalSets}`}
-            label="sets"
-            mono
-            accent={stats.completedSets === stats.totalSets && stats.totalSets > 0}
-          />
+          <LiveStats unit={unit} />
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+      <ScrollView
+        // Shrinking the scroll viewport by the keyboard height is what makes
+        // Android scroll the focused input into view. Under edge-to-edge the
+        // window no longer resizes on its own, so nothing else does this.
+        style={[styles.flex, { marginBottom: keyboardHeight }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom:
+              (keyboardOpen ? space.xxl : insets.bottom + FOOTER_HEIGHT + space.xl) +
+              (restTimerActive && !keyboardOpen ? 76 : 0),
+          },
+        ]}
       >
-        <ScrollView
-          style={styles.flex}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + 150 + (restTimer.endsAt ? 70 : 0) },
-          ]}
-        >
-          {detail.exercises.length === 0 ? (
-            <EmptyState
-              icon="dumbbell"
-              title="Empty session"
-              message="Add your first exercise and start logging."
-              actionLabel="Add exercise"
-              onAction={() => router.push(`/exercises?mode=add&workoutId=${detail.id}`)}
+        {exerciseIds.length === 0 ? (
+          <EmptyState
+            icon="dumbbell"
+            title="Empty session"
+            message="Add your first exercise and start logging."
+            actionLabel="Add exercise"
+            onAction={() => router.push(`/exercises?mode=add&workoutId=${workoutId}`)}
+          />
+        ) : (
+          exerciseIds.map((workoutExerciseId, index) => (
+            <ExerciseCard
+              key={workoutExerciseId}
+              workoutExerciseId={workoutExerciseId}
+              index={index}
+              unit={unit}
+              onOpenPlates={openPlates}
+              onOpenRest={openRest}
+              onOpenExercise={openExercise}
             />
-          ) : (
-            detail.exercises.map((item, index) => (
-              <ExerciseCard
-                key={item.id}
-                item={item}
-                index={index}
-                previous={previous.get(item.exerciseId) ?? []}
-                prSets={prSets}
-                unit={unit}
-                onPatchSet={(setId, patch) => store.patchSet(setId, patch)}
-                onCommitSet={(setId) => void store.commitSet(setId)}
-                onToggleSet={(setId) => void store.toggleComplete(setId)}
-                onDeleteSet={(setId) => void store.removeSet(setId)}
-                onAddSet={() => void store.appendSet(item.id)}
-                onRemove={() => void store.dropExercise(item.id)}
-                onNotes={(notes) => void store.setExerciseNotes(item.id, notes)}
-                onRest={() =>
-                  setRestEditing({ id: item.id, seconds: item.restSeconds || defaultRestSeconds })
-                }
-                onOpenPlates={(weight) => setPlateFor(weight)}
-                onOpenExercise={() => router.push(`/exercise/${item.exerciseId}`)}
-              />
-            ))
-          )}
+          ))
+        )}
 
-          {detail.exercises.length > 0 ? (
-            <Appear from="fade" delay={200}>
-              <PressableScale
-                onPress={() => router.push(`/exercises?mode=add&workoutId=${detail.id}`)}
-                haptic="medium"
-                scaleTo={0.98}
-                style={styles.addExercise}
-              >
-                <Icon name="plus" size={17} color={palette.accent} strokeWidth={2.2} />
-                <Text variant="subheading" color="accent">
-                  Add exercise
-                </Text>
-              </PressableScale>
-            </Appear>
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        {exerciseIds.length > 0 ? (
+          <Appear from="fade" delay={200}>
+            <PressableScale
+              onPress={() => router.push(`/exercises?mode=add&workoutId=${workoutId}`)}
+              haptic="medium"
+              scaleTo={0.98}
+              style={styles.addExercise}
+            >
+              <Icon name="plus" size={17} color={palette.accent} strokeWidth={2.2} />
+              <Text variant="subheading" color="accent">
+                Add exercise
+              </Text>
+            </PressableScale>
+          </Appear>
+        ) : null}
+      </ScrollView>
 
-      <Appear style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
-        <Button
-          label={finishing ? 'Saving…' : 'Finish session'}
-          icon="check"
-          size="lg"
-          fullWidth
-          loading={finishing}
-          onPress={() => {
-            haptics.heavy();
-            void onFinish();
-          }}
-        />
-      </Appear>
+      {/* Hidden while typing: it would sit behind the keyboard, and the list
+          needs every pixel it can get. */}
+      {!keyboardOpen ? (
+        <Appear style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+          <Button
+            label={finishing ? 'Saving…' : 'Finish session'}
+            icon="check"
+            size="lg"
+            fullWidth
+            loading={finishing}
+            onPress={() => {
+              haptics.heavy();
+              void onFinish();
+            }}
+          />
+        </Appear>
+      ) : null}
 
       <PlateSheet
         visible={plateFor !== null}
@@ -296,7 +300,7 @@ export default function WorkoutScreen() {
             label="Save"
             fullWidth
             onPress={() => {
-              if (restEditing) void store.setExerciseRest(restEditing.id, restEditing.seconds);
+              if (restEditing) void setExerciseRest(restEditing.id, restEditing.seconds);
               setRestEditing(null);
             }}
           />
@@ -306,30 +310,63 @@ export default function WorkoutScreen() {
   );
 }
 
-const KEEP_AWAKE_TAG = 'knight-session';
-
 /**
- * Keeps the screen on for the session, toggleable from settings.
- *
- * Uses the imperative API rather than `useKeepAwake` because that hook wants a
- * stable tag for its whole lifetime — passing `undefined` to disable it leaves
- * the cleanup trying to release a lock that was never taken, which throws.
- * Both calls swallow errors: a device (or browser) without wake-lock support
- * must not take the logger down with it.
+ * Isolated so the once-a-second tick repaints three characters instead of the
+ * entire session. Recomputed from startedAt rather than incremented, so the
+ * clock stays correct after the app has been backgrounded.
  */
+function SessionClock({ startedAt }: { startedAt: number }) {
+  const [elapsed, setElapsed] = useState(() =>
+    startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0,
+  );
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const update = () => setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+
+  return <LiveStat icon="clock" value={formatDuration(elapsed)} label="elapsed" />;
+}
+
+function LiveStats({ unit }: { unit: string }) {
+  const volume = useWorkout((state) => state.stats().volume);
+  const completedSets = useWorkout((state) => state.stats().completedSets);
+  const totalSets = useWorkout((state) => state.stats().totalSets);
+
+  return (
+    <>
+      <LiveStat icon="barChart" value={`${formatCompact(volume)} ${unit}`} label="volume" />
+      <View style={styles.statDivider} />
+      <LiveStat
+        icon="check"
+        value={`${completedSets}/${totalSets}`}
+        label="sets"
+        accent={completedSets === totalSets && totalSets > 0}
+      />
+    </>
+  );
+}
+
+/** Hook wrapper so keep-awake can be toggled from settings. Uses the
+ *  imperative API because `useKeepAwake` wants one stable tag for its whole
+ *  lifetime, and both calls swallow errors so a device without wake-lock
+ *  support cannot take the logger down. */
 function useKeepAwakeWhen(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     let released = false;
 
-    void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {
+    void activateKeepAwakeAsync('knight-session').catch(() => {
       released = true;
     });
 
     return () => {
       if (released) return;
       try {
-        void Promise.resolve(deactivateKeepAwake(KEEP_AWAKE_TAG)).catch(() => undefined);
+        void Promise.resolve(deactivateKeepAwake('knight-session')).catch(() => undefined);
       } catch {
         // Lock was never granted; nothing to release.
       }
@@ -341,24 +378,18 @@ function LiveStat({
   icon,
   value,
   label,
-  mono,
   accent,
 }: {
   icon: 'clock' | 'barChart' | 'check';
   value: string;
   label: string;
-  mono?: boolean;
   accent?: boolean;
 }) {
   return (
     <View style={styles.liveStat}>
       <View style={styles.liveStatTop}>
         <Icon name={icon} size={12} color={palette.textTertiary} />
-        <Text
-          variant={mono ? 'numeric' : 'subheading'}
-          style={{ fontSize: 15 }}
-          color={accent ? 'accent' : 'primary'}
-        >
+        <Text variant="numeric" style={{ fontSize: 15 }} color={accent ? 'accent' : 'primary'}>
           {value}
         </Text>
       </View>

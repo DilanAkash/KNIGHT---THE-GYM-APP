@@ -132,6 +132,26 @@ export const EXERCISE_LIBRARY: SeedExercise[] = [
   { id: 'ex_stairmaster', name: 'Stair Master', primary: 'cardio', secondary: ['glutes', 'quads'], equipment: 'machine', tracking: 'duration' },
   { id: 'ex_elliptical', name: 'Elliptical', primary: 'cardio', secondary: [], equipment: 'machine', tracking: 'distance_duration' },
   { id: 'ex_jump_rope', name: 'Jump Rope', primary: 'cardio', secondary: ['calves'], equipment: 'other', tracking: 'duration' },
+
+  // ------------------------------------------------- added for the cut split
+  { id: 'ex_v_step_db_squat', name: 'V-Step Dumbbell Squat', primary: 'quads', secondary: ['glutes'], equipment: 'dumbbell', cue: 'Step out on the diagonal and keep the trailing hip square.' },
+  { id: 'ex_smith_single_leg_press', name: 'Smith Machine Single-Leg Press', primary: 'quads', secondary: ['glutes', 'hamstrings'], equipment: 'machine', cue: 'One leg at a time under the bar — control the descent, do not bounce.' },
+  { id: 'ex_v_bar_shrug', name: 'V-Bar Shrug', primary: 'traps', secondary: ['forearms'], equipment: 'cable', cue: 'Straight up and pause. The V-bar keeps the load close to your centre.' },
+  { id: 'ex_cable_high_pull', name: 'Cable High Pull', primary: 'traps', secondary: ['rear_delts', 'side_delts'], equipment: 'cable', cue: 'Lead with the elbows and finish high, around collarbone height.' },
+  { id: 'ex_behind_neck_press', name: 'Behind-the-Neck Press', primary: 'front_delts', secondary: ['side_delts', 'triceps'], equipment: 'barbell', cue: 'Only go as low as your shoulders allow comfortably. Ego has no place here.' },
+  { id: 'ex_db_reverse_shrug', name: 'Dumbbell Reverse Shrug', primary: 'traps', secondary: ['rear_delts'], equipment: 'dumbbell', cue: 'Shrug back and down rather than straight up — hits the lower traps.' },
+
+  { id: 'ex_reverse_lat_pulldown', name: 'Reverse-Grip Lat Pulldown', primary: 'lats', secondary: ['biceps'], equipment: 'cable', cue: 'Underhand grip shortens the lever and lets the lats do more.' },
+  { id: 'ex_incline_rear_delt_raise', name: 'Incline Dumbbell Rear Delt Raise', primary: 'rear_delts', secondary: ['upper_back'], equipment: 'dumbbell', cue: 'Chest on the pad so momentum is off the table.' },
+  { id: 'ex_cable_row_low_high', name: 'Standing Low-to-High Cable Row', primary: 'upper_back', secondary: ['rear_delts', 'lats'], equipment: 'cable', cue: 'Pull from low to high and squeeze at chest height.' },
+  { id: 'ex_db_deadlift', name: 'Dumbbell Deadlift', primary: 'hamstrings', secondary: ['glutes', 'lower_back', 'traps'], equipment: 'dumbbell', cue: 'Dumbbells travel close to the shins. Hips back, not down.' },
+  { id: 'ex_reverse_cable_curl', name: 'Reverse-Grip Cable Curl', primary: 'forearms', secondary: ['biceps'], equipment: 'cable', cue: 'Overhand grip. Lighter than a normal curl — the wrists decide.' },
+
+  { id: 'ex_high_cable_pullover', name: 'High Cable Pullover', primary: 'chest', secondary: ['lats'], equipment: 'cable', cue: 'Slight forward lean, arms nearly straight, pull down in an arc.' },
+  { id: 'ex_decline_cable_fly', name: 'Decline Cable Fly', primary: 'chest', secondary: [], equipment: 'cable', cue: 'High anchors, hands finish low and together across the hips.' },
+  { id: 'ex_reverse_pushdown', name: 'Reverse-Grip Pushdown', primary: 'triceps', secondary: [], equipment: 'cable', cue: 'Underhand grip biases the medial head. Keep the wrists neutral.' },
+  { id: 'ex_short_bar_overhead_ext', name: 'Short Bar Overhead Extension', primary: 'triceps', secondary: [], equipment: 'cable', cue: 'Overhead puts the long head on stretch — that is the whole point.' },
+  { id: 'ex_db_kickback', name: 'Dumbbell Kickback', primary: 'triceps', secondary: [], equipment: 'dumbbell', cue: 'Upper arm pinned parallel to the floor. Only the forearm moves.' },
 ];
 
 /** Human labels for muscle groups, used everywhere in the UI. */

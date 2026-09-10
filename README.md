@@ -20,10 +20,11 @@ Built by [SwizzKnight](https://swizzknight.vercel.app/).
 
 **Plan**
 - Routine builder with days, exercises, target sets and rep ranges
-- Push/Pull/Legs preloaded; Upper/Lower and Full Body available as templates
+- Cut Split preloaded — Legs/Shoulders, Back/Biceps, Chest/Triceps, high rep.
+  Push/Pull/Legs, Upper/Lower and Full Body are there as templates too
 - The Today screen queues the next session by following your split from whatever
   you did last, so missing a day doesn't put you out of sync
-- 100 exercises with muscle mapping and a coaching cue on the ones that need it,
+- 115 exercises with muscle mapping and a coaching cue on the ones that need it,
   plus your own custom exercises
 
 **Measure**
@@ -118,6 +119,29 @@ Entrance animations go through `<Appear>` rather than Reanimated's
 `entering={...}` layout animations. Layout animations take an element out of
 flow while they run — fine on native, but on web they leave it absolutely
 positioned forever and every screen collapses into a pile.
+
+### Keyboard
+
+The app runs edge-to-edge, and under edge-to-edge Android stops resizing the
+window when the keyboard opens. Everything that relied on that resize —
+`KeyboardAvoidingView`, a ScrollView shrinking, a bottom sheet staying visible —
+silently does nothing, and the field you're typing into ends up behind the
+keyboard.
+
+So layout reacts to `useKeyboardHeight()` explicitly: the logger shrinks its
+scroll viewport (which is what makes Android scroll the focused input into
+view), and `Sheet` lifts by the keyboard height. Anything with a text input
+needs to account for it — nothing handles this for you.
+
+### Rendering in the logger
+
+A live session can have thirty text inputs on screen. Two rules keep typing
+fast:
+
+- Screens select narrowly from the store. Subscribing to the whole thing
+  re-renders every card on every keystroke.
+- `patchSet` only gives a new object identity to the exercise that actually
+  changed, so a memoised `ExerciseCard` re-renders alone.
 
 ---
 

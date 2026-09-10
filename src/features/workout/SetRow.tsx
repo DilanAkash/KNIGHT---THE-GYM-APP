@@ -14,7 +14,7 @@ import { PressableScale } from '@/components/ui/Pressable';
 import { Text } from '@/components/ui/Text';
 import type { SetType, WorkoutSet } from '@/db/types';
 import type { PreviousSet } from '@/db/queries/exercises';
-import { palette, radius, space, spring, timing, typography } from '@/theme';
+import { fontFamily, palette, radius, space, spring, tabular, timing, typography } from '@/theme';
 
 const TYPE_LABEL: Record<SetType, string> = {
   normal: '',
@@ -36,22 +36,27 @@ export interface SetRowProps {
   previous: PreviousSet | undefined;
   isPr: boolean;
   unit: string;
-  onChange: (patch: Partial<Pick<WorkoutSet, 'weight' | 'reps'>>) => void;
-  onCommit: () => void;
-  onToggle: () => void;
-  onCycleType: () => void;
-  onDelete: () => void;
+  /**
+   * Every handler takes the set id back rather than closing over it, so the
+   * parent can define them once with useCallback. Inline arrows here would
+   * change identity each render and defeat the memo on this component.
+   */
+  onChange: (setId: string, patch: Partial<Pick<WorkoutSet, 'weight' | 'reps'>>) => void;
+  onCommit: (setId: string) => void;
+  onToggle: (setId: string) => void;
+  onCycleType: (setId: string, current: SetType) => void;
+  onDelete: (setId: string) => void;
   onOpenPlates: (weight: number) => void;
 }
 
 /**
  * One logged set.
  *
- * Two rules drive the whole design:
- *  1. Typing never waits on the database. The inputs hold local text while
- *     focused and only commit on blur, so a slow write can't eat a keystroke.
- *  2. The previous session's numbers sit inline, tappable to copy. Beating
- *     last time is the entire point of writing any of this down.
+ * Two rules drive the design:
+ *  1. Typing never waits on the database. Keystrokes update the store, and only
+ *     blur writes to SQLite.
+ *  2. The previous session's numbers sit inline, tappable to copy. Beating last
+ *     time is the entire point of writing any of this down.
  */
 export const SetRow = memo(function SetRow({
   set,
@@ -110,7 +115,7 @@ export const SetRow = memo(function SetRow({
       'worklet';
       if (offsetX.value < -78) {
         offsetX.value = withTiming(-400, { duration: 180 }, (finished) => {
-          if (finished) runOnJS(onDelete)();
+          if (finished) runOnJS(onDelete)(set.id);
         });
       } else {
         offsetX.value = withSpring(0, spring.snap);
@@ -121,36 +126,29 @@ export const SetRow = memo(function SetRow({
     if (!previous) return;
     setWeightText(String(previous.weight));
     setRepsText(String(previous.reps));
-    onChange({ weight: previous.weight, reps: previous.reps });
-    onCommit();
+    onChange(set.id, { weight: previous.weight, reps: previous.reps });
+    onCommit(set.id);
   };
 
-  const parseWeight = (text: string) => {
-    const parsed = parseFloat(text.replace(',', '.'));
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const parseReps = (text: string) => {
-    const parsed = parseInt(text, 10);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  // Every keystroke updates the store (cheap, in memory) but only blur writes
-  // to SQLite. Deferring both would mean tapping the tick straight after typing
-  // could log the previous value if blur has not landed yet.
   const changeWeight = (text: string) => {
     setWeightText(text);
-    onChange({ weight: parseWeight(text) });
+    const parsed = parseFloat(text.replace(',', '.'));
+    onChange(set.id, { weight: Number.isFinite(parsed) ? parsed : 0 });
   };
 
   const changeReps = (text: string) => {
     setRepsText(text);
-    onChange({ reps: parseReps(text) });
+    const parsed = parseInt(text, 10);
+    onChange(set.id, { reps: Number.isFinite(parsed) ? parsed : 0 });
   };
 
   const commit = () => {
     editing.current = false;
-    onCommit();
+    onCommit(set.id);
+  };
+
+  const focus = () => {
+    editing.current = true;
   };
 
   return (
@@ -162,7 +160,7 @@ export const SetRow = memo(function SetRow({
       <GestureDetector gesture={swipe}>
         <Animated.View style={[styles.row, rowStyle]}>
           <PressableScale
-            onPress={onCycleType}
+            onPress={() => onCycleType(set.id, set.type)}
             haptic="selection"
             scaleTo={0.85}
             style={styles.indexCell}
@@ -200,9 +198,7 @@ export const SetRow = memo(function SetRow({
             <TextInput
               value={weightText}
               onChangeText={changeWeight}
-              onFocus={() => {
-                editing.current = true;
-              }}
+              onFocus={focus}
               onBlur={commit}
               keyboardType="decimal-pad"
               placeholder={previous ? trim(previous.weight) : '0'}
@@ -219,9 +215,7 @@ export const SetRow = memo(function SetRow({
             <TextInput
               value={repsText}
               onChangeText={changeReps}
-              onFocus={() => {
-                editing.current = true;
-              }}
+              onFocus={focus}
               onBlur={commit}
               keyboardType="number-pad"
               placeholder={previous ? String(previous.reps) : '0'}
@@ -245,7 +239,11 @@ export const SetRow = memo(function SetRow({
             <Icon name="plate" size={16} color={palette.textTertiary} />
           </PressableScale>
 
-          <CompleteButton completed={set.completed} onPress={onToggle} index={index} />
+          <CompleteButton
+            completed={set.completed}
+            onPress={() => onToggle(set.id)}
+            index={index}
+          />
 
           {isPr ? <PrBadge /> : null}
         </Animated.View>
@@ -380,7 +378,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingBottom: 2,
   },
-  // Headers only need to label the column, not reserve a row's worth of height.
   headerCell: {
     height: 18,
     alignItems: 'center',
@@ -391,29 +388,37 @@ const styles = StyleSheet.create({
   },
   indexCell: {
     width: 30,
-    height: 38,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   previousCell: {
     width: 62,
-    height: 38,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   inputCell: {
     flex: 1,
-    height: 38,
+    height: 42,
   },
   input: {
     flex: 1,
     textAlign: 'center',
-    ...typography.numeric,
+    // Deliberately not spreading typography.numeric: its lineHeight clips the
+    // text inside a fixed-height TextInput on Android, which can leave the
+    // field looking empty while you type.
+    fontFamily: fontFamily.displayMedium,
+    fontSize: 17,
+    letterSpacing: -0.3,
+    ...tabular,
     color: palette.textPrimary,
     backgroundColor: palette.surfaceHigh,
     borderRadius: radius.xs,
     paddingVertical: 0,
+    paddingHorizontal: 2,
     includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   inputDone: {
     backgroundColor: 'transparent',
@@ -421,13 +426,13 @@ const styles = StyleSheet.create({
   },
   plateCell: {
     width: 30,
-    height: 38,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkCell: {
     width: 40,
-    height: 38,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },

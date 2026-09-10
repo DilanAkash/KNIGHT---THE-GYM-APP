@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Keyboard, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -12,6 +12,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { IconButton } from './Button';
 import { Text } from './Text';
+import { useKeyboardHeight } from '@/lib/useKeyboard';
 import { palette, radius, space, spring, timing } from '@/theme';
 
 export interface SheetProps {
@@ -35,8 +36,16 @@ export interface SheetProps {
 export function Sheet({ visible, onClose, title, children, maxHeight = 0.88, compact = false }: SheetProps) {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
+  const keyboardHeight = useKeyboardHeight();
   const translateY = useSharedValue(screenHeight);
   const backdrop = useSharedValue(0);
+  const lift = useSharedValue(0);
+
+  // The sheet is bottom-anchored, so the keyboard covers it exactly. Lifting by
+  // the keyboard height keeps the field being typed into on screen.
+  useEffect(() => {
+    lift.value = withTiming(keyboardHeight, timing.base);
+  }, [keyboardHeight, lift]);
 
   useEffect(() => {
     if (visible) {
@@ -56,6 +65,10 @@ export function Sheet({ visible, onClose, title, children, maxHeight = 0.88, com
   };
 
   const pan = Gesture.Pan()
+    .onBegin(() => {
+      'worklet';
+      runOnJS(Keyboard.dismiss)();
+    })
     .onUpdate((event) => {
       'worklet';
       // Resist upward drag instead of blocking it — a hard stop feels broken.
@@ -75,7 +88,7 @@ export function Sheet({ visible, onClose, title, children, maxHeight = 0.88, com
     });
 
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.value - lift.value }],
   }));
 
   const backdropStyle = useAnimatedStyle(() => ({
@@ -119,7 +132,15 @@ export function Sheet({ visible, onClose, title, children, maxHeight = 0.88, com
                 />
               </View>
             ) : null}
-            <View style={styles.body}>{children}</View>
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {children}
+            </ScrollView>
           </Animated.View>
         </GestureDetector>
       </View>
@@ -156,6 +177,9 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
   },
   body: {
+    flexGrow: 0,
+  },
+  bodyContent: {
     paddingHorizontal: space.lg,
   },
 });

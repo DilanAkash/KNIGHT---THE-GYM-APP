@@ -2,11 +2,13 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { createId } from '@/lib/id';
 import { getDb, getSetting, setSetting } from './client';
 import { EXERCISE_LIBRARY } from './exerciseLibrary';
-import { PPL_TEMPLATE, type RoutineTemplate } from './routineTemplates';
+import { CUT_SPLIT_TEMPLATE, PPL_TEMPLATE, type RoutineTemplate } from './routineTemplates';
 
 const SEED_KEY = 'library_version';
+/** Marks the one-time install of the cut split for pre-existing databases. */
+const CUT_SPLIT_KEY = 'cut_split_installed';
 /** Bump when EXERCISE_LIBRARY gains entries so existing installs pick them up. */
-const LIBRARY_VERSION = '1';
+const LIBRARY_VERSION = '2';
 
 async function seedExercises(db: SQLiteDatabase): Promise<void> {
   const now = Date.now();
@@ -105,7 +107,18 @@ export async function ensureSeeded(): Promise<void> {
     'SELECT COUNT(*) AS count FROM routines;',
   );
   if ((routineCount?.count ?? 0) === 0) {
-    const routineId = await installTemplate(PPL_TEMPLATE);
+    const routineId = await installTemplate(CUT_SPLIT_TEMPLATE);
     await setSetting('active_routine_id', routineId);
+    await setSetting(CUT_SPLIT_KEY, 'installed');
+    return;
+  }
+
+  // Installs that predate the cut split get it added once, without wiping
+  // whatever they already had. The flag is what stops it reappearing every
+  // launch after the routine is deleted on purpose.
+  if ((await getSetting(CUT_SPLIT_KEY)) === null) {
+    const routineId = await installTemplate(CUT_SPLIT_TEMPLATE);
+    await setSetting('active_routine_id', routineId);
+    await setSetting(CUT_SPLIT_KEY, 'installed');
   }
 }

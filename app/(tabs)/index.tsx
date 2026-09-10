@@ -1,43 +1,35 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Appear } from '@/components/ui/Appear';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Section } from '@/components/ui/Card';
-import { Header } from '@/components/ui/Header';
 import { Icon } from '@/components/ui/Icon';
 import { PressableScale } from '@/components/ui/Pressable';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { StatTile } from '@/components/ui/StatTile';
 import { Text } from '@/components/ui/Text';
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
-import { EmptyState } from '@/components/ui/Feedback';
+import { WeekStrip } from '@/features/today/WeekStrip';
 import { useToday } from '@/features/today/useToday';
 import { useWorkout } from '@/store/workout';
 import { useSettings } from '@/store/settings';
-import { greeting } from '@/lib/date';
-import { formatCompact, formatDurationLong } from '@/lib/strength';
+import { dateKey, greeting, longDate } from '@/lib/date';
+import { formatCompact } from '@/lib/strength';
 import { haptics } from '@/lib/haptics';
 import { layout, palette, radius, space, typography } from '@/theme';
 
-const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
-
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
-  const scrollY = useSharedValue(0);
   const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState(false);
 
-  const { overview, activeWorkout, routineName, nextDay, recentRecords, nutrition, reload } = useToday();
+  const { overview, activeWorkout, routineName, nextDay, recentRecords, nutrition, trainingDays, reload } =
+    useToday();
   const begin = useWorkout((state) => state.begin);
   const { weeklyGoal, displayName, unit, nutritionTargets } = useSettings();
-
-  const onScroll = useAnimatedScrollHandler((event) => {
-    scrollY.value = event.contentOffset.y;
-  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -63,31 +55,20 @@ export default function TodayScreen() {
 
   const sessions = overview?.workoutsThisWeek ?? 0;
   const goalProgress = weeklyGoal > 0 ? sessions / weeklyGoal : 0;
+  const trainedToday = (trainingDays.get(dateKey()) ?? 0) > 0;
   const volumeDelta =
     overview && overview.volumeLastWeek > 0
       ? ((overview.volumeThisWeek - overview.volumeLastWeek) / overview.volumeLastWeek) * 100
       : null;
 
+  const status = useMemo(
+    () => weekStatus({ sessions, goal: weeklyGoal, trainedToday, hasActive: Boolean(activeWorkout) }),
+    [sessions, weeklyGoal, trainedToday, activeWorkout],
+  );
+
   return (
     <View style={styles.root}>
-      <Header
-        title="Today"
-        eyebrow={displayName ? `${greeting()}, ${displayName}` : greeting()}
-        scrollY={scrollY}
-        right={
-          <IconButton
-            name="sliders"
-            accessibilityLabel="Settings"
-            onPress={() => router.push('/settings')}
-            size={40}
-            background={palette.surface}
-          />
-        }
-      />
-
-      <AnimatedScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={16}
+      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -100,11 +81,51 @@ export default function TodayScreen() {
         }
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: insets.bottom + layout.tabBarHeight + space.xxl },
+          {
+            paddingTop: insets.top + space.base,
+            paddingBottom: insets.bottom + layout.tabBarHeight + space.xxl,
+          },
         ]}
       >
+        {/* A greeting by name, today's date and the week so far. The screen
+            should answer "where am I" before it asks anything of you. */}
+        <Appear from="fade">
+          <View style={styles.welcome}>
+            <View style={styles.welcomeText}>
+              <Text variant="label" color="tertiary">
+                {longDate()}
+              </Text>
+              <Text variant="display" numberOfLines={1}>
+                {displayName ? `${greeting()}, ${displayName.split(' ')[0]}` : greeting()}
+              </Text>
+            </View>
+            <IconButton
+              name="sliders"
+              accessibilityLabel="Settings"
+              onPress={() => router.push('/settings')}
+              size={42}
+              background={palette.surface}
+            />
+          </View>
+        </Appear>
+
+        <Appear index={1}>
+          <View style={styles.weekCard}>
+            <WeekStrip days={trainingDays} />
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, status.tone === 'accent' ? styles.statusDotOn : null]} />
+              <Text variant="body" color={status.tone === 'accent' ? 'accent' : 'secondary'} style={{ flex: 1 }}>
+                {status.text}
+              </Text>
+              <Text variant="numeric" color="tertiary" style={{ fontSize: 13 }}>
+                {sessions}/{weeklyGoal}
+              </Text>
+            </View>
+          </View>
+        </Appear>
+
         {activeWorkout ? (
-          <Appear>
+          <Appear index={2}>
             <PressableScale
               onPress={() => router.push(`/workout/${activeWorkout.id}`)}
               scaleTo={0.98}
@@ -142,37 +163,22 @@ export default function TodayScreen() {
           />
         )}
 
-        <Section title="This week">
-          <Card padded={false} index={1}>
-            <View style={styles.weekRow}>
-              <ProgressRing progress={goalProgress} size={78} thickness={7} gradient delay={120}>
-                <View style={styles.ringCenter}>
-                  <Text variant="numericLarge" style={{ fontSize: 22 }}>
-                    {sessions}
-                  </Text>
-                  <Text variant="caption" color="tertiary" style={{ fontSize: 10 }}>
-                    of {weeklyGoal}
-                  </Text>
-                </View>
-              </ProgressRing>
-
-              <View style={styles.weekStats}>
-                <WeekStat
-                  label="Volume"
-                  value={formatCompact(overview?.volumeThisWeek ?? 0)}
-                  suffix={unit}
-                />
-                <WeekStat label="Sets" value={String(overview?.totalSets ?? 0)} suffix="all time" />
-                <WeekStat
-                  label="Streak"
-                  value={String(overview?.currentStreakWeeks ?? 0)}
-                  suffix={overview?.currentStreakWeeks === 1 ? 'week' : 'weeks'}
-                  accent={(overview?.currentStreakWeeks ?? 0) >= 2}
-                />
-              </View>
-            </View>
-          </Card>
-        </Section>
+        {!displayName ? (
+          <Appear index={3}>
+            <PressableScale
+              onPress={() => router.push('/settings')}
+              haptic="light"
+              scaleTo={0.98}
+              style={styles.namePrompt}
+            >
+              <Icon name="user" size={17} color={palette.textSecondary} />
+              <Text variant="body" color="secondary" style={{ flex: 1 }}>
+                Tell KNIGHT your name
+              </Text>
+              <Icon name="chevronRight" size={16} color={palette.textTertiary} />
+            </PressableScale>
+          </Appear>
+        ) : null}
 
         <View style={styles.tiles}>
           <StatTile
@@ -184,10 +190,10 @@ export default function TodayScreen() {
             delta={volumeDelta}
           />
           <StatTile
-            label="Sessions"
-            value={overview?.totalWorkouts ?? 0}
-            icon="dumbbell"
-            accent={(overview?.totalWorkouts ?? 0) > 0}
+            label="Week streak"
+            value={overview?.currentStreakWeeks ?? 0}
+            icon="flame"
+            accent={(overview?.currentStreakWeeks ?? 0) >= 2}
           />
         </View>
 
@@ -202,7 +208,7 @@ export default function TodayScreen() {
               </PressableScale>
             }
           >
-            <Card index={2} onPress={() => router.push('/(tabs)/fuel')}>
+            <Card index={4} onPress={() => router.push('/(tabs)/fuel')}>
               <View style={styles.fuelRow}>
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={styles.fuelValue}>
@@ -246,7 +252,7 @@ export default function TodayScreen() {
           >
             <View style={{ gap: space.sm }}>
               {recentRecords.map((record, index) => (
-                <Card key={record.id} index={index + 3} padded={false}>
+                <Card key={record.id} index={index + 5} padded={false}>
                   <View style={styles.recordRow}>
                     <View style={styles.recordBadge}>
                       <Icon name="trophy" size={16} color={palette.accent} />
@@ -278,24 +284,40 @@ export default function TodayScreen() {
             <QuickAction icon="droplet" label="Water" onPress={() => router.push('/(tabs)/fuel')} />
           </View>
         </Section>
-
-        {overview && overview.totalWorkouts === 0 ? (
-          <Appear from="fade" delay={300}>
-            <EmptyState
-              icon="bolt"
-              title="Nothing logged yet"
-              message="Start your first session and KNIGHT begins tracking volume, records and muscle balance automatically."
-              compact
-            />
-          </Appear>
-        ) : overview?.lastWorkoutAt ? (
-          <Text variant="caption" color="tertiary" align="center">
-            Last session {formatDurationLong((Date.now() - overview.lastWorkoutAt) / 1000)} ago
-          </Text>
-        ) : null}
-      </AnimatedScrollView>
+      </ScrollView>
     </View>
   );
+}
+
+/**
+ * One line of plain language about the week.
+ *
+ * Deliberately never scolds — an app that opens with what you failed to do is
+ * one you stop opening. A quiet week gets an invitation, not a guilt trip.
+ */
+function weekStatus({
+  sessions,
+  goal,
+  trainedToday,
+  hasActive,
+}: {
+  sessions: number;
+  goal: number;
+  trainedToday: boolean;
+  hasActive: boolean;
+}): { text: string; tone: 'accent' | 'muted' } {
+  if (hasActive) return { text: 'You have a session running.', tone: 'accent' };
+  if (goal > 0 && sessions >= goal) {
+    return { text: `Week's target hit. ${sessions} in the bank.`, tone: 'accent' };
+  }
+  if (trainedToday) return { text: 'Trained today. Rest is part of it.', tone: 'accent' };
+  if (sessions === 0) return { text: 'Fresh week. Nothing logged yet.', tone: 'muted' };
+
+  const left = Math.max(0, goal - sessions);
+  return {
+    text: `${sessions} down, ${left} to go this week.`,
+    tone: 'muted',
+  };
 }
 
 function NextSessionCard({
@@ -317,21 +339,22 @@ function NextSessionCard({
 }) {
   if (!dayName) {
     return (
-      <Card index={0}>
-        <EmptyState
-          icon="layers"
-          title="No routine yet"
-          message="Build a split and KNIGHT will queue up the right session every time you open it."
-          actionLabel="Build a routine"
-          onAction={onBrowse}
-          compact
-        />
-      </Card>
+      <Appear index={2}>
+        <View style={styles.hero}>
+          <Text variant="overline" color="accent">
+            No routine yet
+          </Text>
+          <Text variant="body" color="secondary">
+            Pick a split and KNIGHT queues the right session every time you open it.
+          </Text>
+          <Button label="Browse templates" icon="layers" size="lg" fullWidth onPress={onBrowse} />
+        </View>
+      </Appear>
     );
   }
 
   return (
-    <Appear>
+    <Appear index={2}>
       <View style={styles.hero}>
         <LinearGradient
           colors={['rgba(199,255,60,0.10)', 'rgba(199,255,60,0.02)', 'transparent']}
@@ -345,7 +368,7 @@ function NextSessionCard({
             <Text variant="overline" color="accent">
               Up next
             </Text>
-            <Text variant="title" numberOfLines={1}>
+            <Text variant="title" numberOfLines={2}>
               {dayName}
             </Text>
             {routineName ? (
@@ -398,36 +421,6 @@ function NextSessionCard({
   );
 }
 
-function WeekStat({
-  label,
-  value,
-  suffix,
-  accent,
-}: {
-  label: string;
-  value: string;
-  suffix?: string;
-  accent?: boolean;
-}) {
-  return (
-    <View style={styles.weekStat}>
-      <Text variant="overline" color="tertiary">
-        {label}
-      </Text>
-      <View style={styles.weekStatValue}>
-        <Text style={[typography.numeric, { color: accent ? palette.accent : palette.textPrimary }]}>
-          {value}
-        </Text>
-        {suffix ? (
-          <Text variant="caption" color="tertiary">
-            {suffix}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
 function QuickAction({
   icon,
   label,
@@ -456,8 +449,42 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: layout.gutter,
-    paddingTop: space.sm,
-    gap: space.xl,
+    gap: space.lg,
+  },
+  welcome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingBottom: space.xs,
+  },
+  welcomeText: {
+    flex: 1,
+    gap: 2,
+  },
+  weekCard: {
+    backgroundColor: palette.surface,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.hairline,
+    padding: space.base,
+    gap: space.md,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingTop: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.hairline,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: palette.textTertiary,
+  },
+  statusDotOn: {
+    backgroundColor: palette.accent,
   },
   hero: {
     borderRadius: radius.xl,
@@ -509,26 +536,15 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  weekRow: {
+  namePrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.lg,
-    padding: space.base,
-  },
-  ringCenter: {
-    alignItems: 'center',
-  },
-  weekStats: {
-    flex: 1,
     gap: space.md,
-  },
-  weekStat: {
-    gap: 1,
-  },
-  weekStatValue: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 5,
+    padding: space.base,
+    borderRadius: radius.md,
+    backgroundColor: palette.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.hairline,
   },
   tiles: {
     flexDirection: 'row',

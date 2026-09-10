@@ -118,15 +118,22 @@ export const useWorkout = create<WorkoutState>((set, get) => ({
   patchSet: (setId, patch) => {
     const detail = get().detail;
     if (!detail) return;
-    set({
-      detail: {
-        ...detail,
-        exercises: detail.exercises.map((exercise) => ({
-          ...exercise,
-          sets: exercise.sets.map((item) => (item.id === setId ? { ...item, ...patch } : item)),
-        })),
-      },
+
+    // Only the exercise holding this set gets a new object identity. Rebuilding
+    // all of them made every card re-render on every keystroke, which is what
+    // made typing feel laggy with a full session on screen.
+    let touched = false;
+    const exercises = detail.exercises.map((exercise) => {
+      if (!exercise.sets.some((item) => item.id === setId)) return exercise;
+      touched = true;
+      return {
+        ...exercise,
+        sets: exercise.sets.map((item) => (item.id === setId ? { ...item, ...patch } : item)),
+      };
     });
+    if (!touched) return;
+
+    set({ detail: { ...detail, exercises } });
   },
 
   commitSet: async (setId) => {

@@ -207,7 +207,68 @@ export const FULL_BODY_TEMPLATE: RoutineTemplate = {
   ],
 };
 
+
+/**
+ * Dilan's cut split: three sessions, two muscle groups each, high reps
+ * throughout. Transcribed from his own programme — the naming is cleaned up
+ * but the exercise order, set counts and rep targets are exactly as written.
+ */
+export const CUT_SPLIT_TEMPLATE: RoutineTemplate = {
+  key: 'cut_split',
+  name: 'Cut Split',
+  description: 'Legs/Shoulders, Back/Biceps, Chest/Triceps. High rep, short rest.',
+  daysPerWeek: 3,
+  days: [
+    {
+      name: 'Legs & Shoulders',
+      exercises: [
+        e('ex_leg_extension', 3, 20, 20, 60),
+        e('ex_v_step_db_squat', 3, 15, 15, 60, { notes: '15 each side.' }),
+        e('ex_smith_single_leg_press', 3, 15, 15, 60, { notes: '15 each leg.' }),
+        e('ex_leg_press', 3, 15, 15, 90),
+        e('ex_standing_calf_raise', 3, 25, 25, 45),
+        e('ex_v_bar_shrug', 3, 15, 15, 60),
+        e('ex_cable_high_pull', 3, 15, 15, 60),
+        e('ex_behind_neck_press', 3, 15, 15, 75),
+        e('ex_barbell_shrug', 3, 15, 15, 60),
+        e('ex_db_reverse_shrug', 3, 15, 15, 60),
+      ],
+    },
+    {
+      name: 'Back & Biceps',
+      exercises: [
+        e('ex_reverse_lat_pulldown', 3, 15, 15, 75),
+        e('ex_barbell_row', 3, 15, 15, 75),
+        e('ex_incline_rear_delt_raise', 3, 15, 15, 60),
+        e('ex_cable_row_low_high', 3, 15, 15, 60),
+        e('ex_db_deadlift', 3, 15, 15, 90),
+        e('ex_db_curl', 3, 15, 15, 60, { notes: 'Elbow stays back.' }),
+        e('ex_barbell_curl', 3, 15, 15, 60, { notes: 'Keep a gap between the bar and your body.' }),
+        e('ex_hammer_curl', 3, 15, 15, 60),
+        e('ex_reverse_curl', 3, 15, 15, 60),
+        e('ex_reverse_cable_curl', 3, 15, 15, 60),
+      ],
+    },
+    {
+      name: 'Chest & Triceps',
+      exercises: [
+        e('ex_cable_fly_high', 3, 8, 12, 75, { notes: 'Climbing weight: 12, 10, 8.' }),
+        e('ex_high_cable_pullover', 3, 15, 15, 60),
+        e('ex_db_bench', 3, 15, 15, 90),
+        e('ex_decline_bench', 3, 15, 15, 90),
+        e('ex_decline_cable_fly', 3, 15, 15, 60),
+        e('ex_db_overhead_ext', 5, 15, 15, 60),
+        e('ex_pushdown_rope', 3, 15, 15, 60, { notes: 'Close grip.' }),
+        e('ex_reverse_pushdown', 3, 15, 15, 60),
+        e('ex_short_bar_overhead_ext', 3, 15, 15, 60, { notes: 'Upper chest of the triceps — long head.' }),
+        e('ex_db_kickback', 3, 15, 15, 45),
+      ],
+    },
+  ],
+};
+
 export const ROUTINE_TEMPLATES: RoutineTemplate[] = [
+  CUT_SPLIT_TEMPLATE,
   PPL_TEMPLATE,
   UPPER_LOWER_TEMPLATE,
   FULL_BODY_TEMPLATE,

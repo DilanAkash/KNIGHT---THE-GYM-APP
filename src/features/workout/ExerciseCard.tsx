@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { Appear } from '@/components/ui/Appear';
 import { IconButton } from '@/components/ui/Button';
@@ -7,68 +7,88 @@ import { PressableScale } from '@/components/ui/Pressable';
 import { Text } from '@/components/ui/Text';
 import { SetRow, SetRowHeader } from './SetRow';
 import { MUSCLE_LABELS } from '@/db/exerciseLibrary';
-import type { SetType, WorkoutSet } from '@/db/types';
-import type { WorkoutExerciseDetail } from '@/db/queries/workouts';
-import type { PreviousSet } from '@/db/queries/exercises';
+import type { SetType } from '@/db/types';
+import { useWorkout } from '@/store/workout';
 import { formatDuration } from '@/lib/strength';
 import { elevation, palette, radius, space, typography } from '@/theme';
 
 const TYPE_CYCLE: SetType[] = ['normal', 'warmup', 'drop', 'failure'];
 
 export interface ExerciseCardProps {
-  item: WorkoutExerciseDetail;
+  workoutExerciseId: string;
   index: number;
-  previous: PreviousSet[];
-  prSets: Set<string>;
   unit: string;
-  onPatchSet: (setId: string, patch: Partial<Pick<WorkoutSet, 'weight' | 'reps' | 'type'>>) => void;
-  onCommitSet: (setId: string) => void;
-  onToggleSet: (setId: string) => void;
-  onDeleteSet: (setId: string) => void;
-  onAddSet: () => void;
-  onRemove: () => void;
-  onNotes: (notes: string) => void;
-  onRest: () => void;
   onOpenPlates: (weight: number) => void;
-  onOpenExercise: () => void;
+  onOpenRest: (workoutExerciseId: string, seconds: number) => void;
+  onOpenExercise: (exerciseId: string) => void;
 }
 
-export function ExerciseCard({
-  item,
+/**
+ * One exercise in the live session.
+ *
+ * Subscribes to its own slice of the store rather than receiving it from the
+ * screen. Combined with `patchSet` preserving the identity of untouched
+ * exercises, that means a keystroke in one card re-renders only that card —
+ * with six exercises on screen, re-rendering all of them per character was
+ * what made typing feel laggy.
+ */
+export const ExerciseCard = memo(function ExerciseCard({
+  workoutExerciseId,
   index,
-  previous,
-  prSets,
   unit,
-  onPatchSet,
-  onCommitSet,
-  onToggleSet,
-  onDeleteSet,
-  onAddSet,
-  onRemove,
-  onNotes,
-  onRest,
   onOpenPlates,
+  onOpenRest,
   onOpenExercise,
 }: ExerciseCardProps) {
-  const [showNotes, setShowNotes] = useState(Boolean(item.notes));
-  const [noteText, setNoteText] = useState(item.notes ?? '');
+  const item = useWorkout((state) =>
+    state.detail?.exercises.find((exercise) => exercise.id === workoutExerciseId),
+  );
+  const previousByExercise = useWorkout((state) => state.previous);
+  const prSets = useWorkout((state) => state.prSets);
+
+  const patchSet = useWorkout((state) => state.patchSet);
+  const commitSet = useWorkout((state) => state.commitSet);
+  const toggleComplete = useWorkout((state) => state.toggleComplete);
+  const removeSet = useWorkout((state) => state.removeSet);
+  const appendSet = useWorkout((state) => state.appendSet);
+  const dropExercise = useWorkout((state) => state.dropExercise);
+  const setExerciseNotes = useWorkout((state) => state.setExerciseNotes);
+
+  const [showNotes, setShowNotes] = useState(Boolean(item?.notes));
+  const [noteText, setNoteText] = useState(item?.notes ?? '');
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Stable identities so SetRow's memo holds across renders.
+  const handleCommit = useCallback((setId: string) => void commitSet(setId), [commitSet]);
+  const handleToggle = useCallback((setId: string) => void toggleComplete(setId), [toggleComplete]);
+  const handleDelete = useCallback((setId: string) => void removeSet(setId), [removeSet]);
+  const handleCycleType = useCallback(
+    (setId: string, current: SetType) => {
+      const next = TYPE_CYCLE[(TYPE_CYCLE.indexOf(current) + 1) % TYPE_CYCLE.length]!;
+      patchSet(setId, { type: next });
+      void commitSet(setId);
+    },
+    [patchSet, commitSet],
+  );
+
+  if (!item) return null;
 
   const done = item.sets.filter((set) => set.completed).length;
   const target = item.targetSets ?? item.sets.length;
   const range = item.repsLow && item.repsHigh ? `${item.repsLow}–${item.repsHigh}` : null;
+  const previous = previousByExercise.get(item.exerciseId) ?? [];
 
   return (
     <Appear index={index} style={styles.card}>
       <View style={styles.header}>
         <PressableScale
-          onPress={onOpenExercise}
+          onPress={() => onOpenExercise(item.exerciseId)}
           haptic="light"
           scaleTo={0.98}
           dimTo={0.8}
           style={styles.titleBlock}
         >
-          <Text variant="heading" numberOfLines={1}>
+          <Text variant="heading" numberOfLines={2}>
             {item.exercise.name}
           </Text>
           <View style={styles.meta}>
@@ -84,7 +104,11 @@ export function ExerciseCard({
               </>
             ) : null}
             <View style={styles.dot} />
-            <PressableScale onPress={onRest} haptic="light" hitSlop={8}>
+            <PressableScale
+              onPress={() => onOpenRest(item.id, item.restSeconds)}
+              haptic="light"
+              hitSlop={8}
+            >
               <View style={styles.restChip}>
                 <Icon name="clock" size={11} color={palette.textTertiary} />
                 <Text variant="caption" color="tertiary">
@@ -97,7 +121,11 @@ export function ExerciseCard({
 
         <View style={styles.headerActions}>
           <View style={styles.progressPill}>
-            <Text variant="numeric" style={styles.progressText} color={done === target ? 'accent' : 'secondary'}>
+            <Text
+              variant="numeric"
+              style={styles.progressText}
+              color={done === target ? 'accent' : 'secondary'}
+            >
               {done}
             </Text>
             <Text variant="caption" color="tertiary">
@@ -129,7 +157,7 @@ export function ExerciseCard({
             icon="clock"
             label="Rest time"
             onPress={() => {
-              onRest();
+              onOpenRest(item.id, item.restSeconds);
               setMenuOpen(false);
             }}
           />
@@ -137,7 +165,7 @@ export function ExerciseCard({
             icon="activity"
             label="History"
             onPress={() => {
-              onOpenExercise();
+              onOpenExercise(item.exerciseId);
               setMenuOpen(false);
             }}
           />
@@ -146,7 +174,7 @@ export function ExerciseCard({
             label="Remove"
             danger
             onPress={() => {
-              onRemove();
+              void dropExercise(item.id);
               setMenuOpen(false);
             }}
           />
@@ -166,7 +194,7 @@ export function ExerciseCard({
         <TextInput
           value={noteText}
           onChangeText={setNoteText}
-          onBlur={() => onNotes(noteText)}
+          onBlur={() => void setExerciseNotes(item.id, noteText)}
           placeholder="Note for this exercise…"
           placeholderTextColor={palette.textTertiary}
           selectionColor={palette.accent}
@@ -187,21 +215,22 @@ export function ExerciseCard({
             previous={previous[setIndex]}
             isPr={prSets.has(set.id)}
             unit={unit}
-            onChange={(patch) => onPatchSet(set.id, patch)}
-            onCommit={() => onCommitSet(set.id)}
-            onToggle={() => onToggleSet(set.id)}
-            onCycleType={() => {
-              const next = TYPE_CYCLE[(TYPE_CYCLE.indexOf(set.type) + 1) % TYPE_CYCLE.length]!;
-              onPatchSet(set.id, { type: next });
-              onCommitSet(set.id);
-            }}
-            onDelete={() => onDeleteSet(set.id)}
+            onChange={patchSet}
+            onCommit={handleCommit}
+            onToggle={handleToggle}
+            onCycleType={handleCycleType}
+            onDelete={handleDelete}
             onOpenPlates={onOpenPlates}
           />
         ))}
       </View>
 
-      <PressableScale onPress={onAddSet} haptic="light" scaleTo={0.97} style={styles.addSet}>
+      <PressableScale
+        onPress={() => void appendSet(item.id)}
+        haptic="light"
+        scaleTo={0.97}
+        style={styles.addSet}
+      >
         <Icon name="plus" size={15} color={palette.textSecondary} strokeWidth={2.2} />
         <Text variant="label" color="secondary">
           Add set
@@ -209,7 +238,7 @@ export function ExerciseCard({
       </PressableScale>
     </Appear>
   );
-}
+});
 
 function MenuItem({
   icon,
