@@ -1,0 +1,214 @@
+export interface TemplateExercise {
+  exerciseId: string;
+  sets: number;
+  repsLow: number;
+  repsHigh: number;
+  rest: number;
+  supersetGroup?: string;
+  notes?: string;
+}
+
+export interface TemplateDay {
+  name: string;
+  exercises: TemplateExercise[];
+}
+
+export interface RoutineTemplate {
+  key: string;
+  name: string;
+  description: string;
+  daysPerWeek: number;
+  days: TemplateDay[];
+}
+
+const e = (
+  exerciseId: string,
+  sets: number,
+  repsLow: number,
+  repsHigh: number,
+  rest: number,
+  extra: Partial<TemplateExercise> = {},
+): TemplateExercise => ({ exerciseId, sets, repsLow, repsHigh, rest, ...extra });
+
+/**
+ * Push / Pull / Legs, run twice a week.
+ * A-days lead with a heavy compound in a low rep range; B-days rotate the
+ * emphasis so nothing gets hammered from the same angle twice in a week.
+ */
+export const PPL_TEMPLATE: RoutineTemplate = {
+  key: 'ppl',
+  name: 'Push / Pull / Legs',
+  description: 'Six days, two rotations. Heavy compound first, isolation to finish.',
+  daysPerWeek: 6,
+  days: [
+    {
+      name: 'Push A',
+      exercises: [
+        e('ex_bench_press', 4, 5, 8, 180, { notes: 'Top set then back-offs. Leave one in the tank.' }),
+        e('ex_db_shoulder_press', 3, 8, 12, 120),
+        e('ex_incline_db_press', 3, 8, 12, 120),
+        e('ex_cable_lateral', 4, 12, 20, 60),
+        e('ex_pushdown_rope', 3, 10, 15, 60),
+        e('ex_overhead_cable_ext', 3, 10, 15, 60),
+      ],
+    },
+    {
+      name: 'Pull A',
+      exercises: [
+        e('ex_pullup', 4, 6, 10, 150, { notes: 'Add weight once you clear 10 clean reps.' }),
+        e('ex_barbell_row', 4, 6, 10, 150),
+        e('ex_seated_cable_row', 3, 10, 12, 90),
+        e('ex_face_pull', 3, 15, 20, 60),
+        e('ex_incline_curl', 3, 8, 12, 60),
+        e('ex_hammer_curl', 3, 10, 15, 60),
+      ],
+    },
+    {
+      name: 'Legs A',
+      exercises: [
+        e('ex_back_squat', 4, 5, 8, 210),
+        e('ex_rdl', 3, 8, 12, 150),
+        e('ex_leg_press', 3, 10, 15, 120),
+        e('ex_seated_leg_curl', 3, 10, 15, 90),
+        e('ex_standing_calf_raise', 4, 10, 15, 60),
+        e('ex_hanging_leg_raise', 3, 10, 15, 60),
+      ],
+    },
+    {
+      name: 'Push B',
+      exercises: [
+        e('ex_ohp', 4, 5, 8, 180),
+        e('ex_incline_bench', 3, 8, 12, 150),
+        e('ex_cable_fly_high', 3, 12, 15, 75),
+        e('ex_lateral_raise', 4, 12, 20, 60),
+        e('ex_close_grip_bench', 3, 8, 12, 120),
+        e('ex_pushdown_bar', 3, 12, 15, 60),
+      ],
+    },
+    {
+      name: 'Pull B',
+      exercises: [
+        e('ex_deadlift', 3, 3, 5, 240, { notes: 'Stop the set the moment bar speed drops.' }),
+        e('ex_lat_pulldown', 4, 8, 12, 120),
+        e('ex_chest_supported_row', 3, 10, 12, 90),
+        e('ex_reverse_pec_deck', 3, 15, 20, 60),
+        e('ex_barbell_curl', 3, 8, 12, 75),
+        e('ex_cable_curl', 3, 12, 15, 60),
+      ],
+    },
+    {
+      name: 'Legs B',
+      exercises: [
+        e('ex_front_squat', 4, 6, 10, 180),
+        e('ex_hip_thrust', 3, 8, 12, 120),
+        e('ex_bulgarian_split', 3, 8, 12, 120),
+        e('ex_lying_leg_curl', 3, 10, 15, 90),
+        e('ex_seated_calf_raise', 4, 12, 20, 60),
+        e('ex_cable_crunch', 3, 12, 15, 60),
+      ],
+    },
+  ],
+};
+
+export const UPPER_LOWER_TEMPLATE: RoutineTemplate = {
+  key: 'upper_lower',
+  name: 'Upper / Lower',
+  description: 'Four days. The best return per session if you cannot train six.',
+  daysPerWeek: 4,
+  days: [
+    {
+      name: 'Upper A',
+      exercises: [
+        e('ex_bench_press', 4, 5, 8, 180),
+        e('ex_barbell_row', 4, 6, 10, 150),
+        e('ex_db_shoulder_press', 3, 8, 12, 120),
+        e('ex_lat_pulldown', 3, 10, 12, 90),
+        e('ex_lateral_raise', 3, 12, 20, 60),
+        e('ex_ez_curl', 3, 8, 12, 60),
+        e('ex_pushdown_rope', 3, 10, 15, 60),
+      ],
+    },
+    {
+      name: 'Lower A',
+      exercises: [
+        e('ex_back_squat', 4, 5, 8, 210),
+        e('ex_rdl', 3, 8, 12, 150),
+        e('ex_leg_press', 3, 10, 15, 120),
+        e('ex_lying_leg_curl', 3, 10, 15, 90),
+        e('ex_standing_calf_raise', 4, 10, 15, 60),
+        e('ex_cable_crunch', 3, 12, 15, 60),
+      ],
+    },
+    {
+      name: 'Upper B',
+      exercises: [
+        e('ex_ohp', 4, 5, 8, 180),
+        e('ex_pullup', 4, 6, 10, 150),
+        e('ex_incline_db_press', 3, 8, 12, 120),
+        e('ex_chest_supported_row', 3, 10, 12, 90),
+        e('ex_face_pull', 3, 15, 20, 60),
+        e('ex_hammer_curl', 3, 10, 15, 60),
+        e('ex_overhead_cable_ext', 3, 10, 15, 60),
+      ],
+    },
+    {
+      name: 'Lower B',
+      exercises: [
+        e('ex_deadlift', 3, 3, 5, 240),
+        e('ex_front_squat', 3, 6, 10, 180),
+        e('ex_bulgarian_split', 3, 8, 12, 120),
+        e('ex_seated_leg_curl', 3, 10, 15, 90),
+        e('ex_seated_calf_raise', 4, 12, 20, 60),
+        e('ex_hanging_leg_raise', 3, 10, 15, 60),
+      ],
+    },
+  ],
+};
+
+export const FULL_BODY_TEMPLATE: RoutineTemplate = {
+  key: 'full_body',
+  name: 'Full Body',
+  description: 'Three days. Every session hits everything — hard to skip a muscle.',
+  daysPerWeek: 3,
+  days: [
+    {
+      name: 'Full Body A',
+      exercises: [
+        e('ex_back_squat', 3, 5, 8, 180),
+        e('ex_bench_press', 3, 5, 8, 180),
+        e('ex_barbell_row', 3, 6, 10, 150),
+        e('ex_lateral_raise', 3, 12, 20, 60),
+        e('ex_ez_curl', 2, 10, 15, 60),
+        e('ex_pushdown_rope', 2, 10, 15, 60),
+      ],
+    },
+    {
+      name: 'Full Body B',
+      exercises: [
+        e('ex_deadlift', 3, 3, 5, 240),
+        e('ex_ohp', 3, 6, 10, 150),
+        e('ex_lat_pulldown', 3, 8, 12, 120),
+        e('ex_leg_press', 3, 10, 15, 120),
+        e('ex_face_pull', 3, 15, 20, 60),
+        e('ex_cable_crunch', 3, 12, 15, 60),
+      ],
+    },
+    {
+      name: 'Full Body C',
+      exercises: [
+        e('ex_front_squat', 3, 6, 10, 180),
+        e('ex_incline_db_press', 3, 8, 12, 120),
+        e('ex_chest_supported_row', 3, 10, 12, 90),
+        e('ex_rdl', 3, 8, 12, 150),
+        e('ex_standing_calf_raise', 3, 10, 15, 60),
+        e('ex_hammer_curl', 2, 10, 15, 60),
+      ],
+    },
+  ],
+};
+
+export const ROUTINE_TEMPLATES: RoutineTemplate[] = [
+  PPL_TEMPLATE,
+  UPPER_LOWER_TEMPLATE,
+  FULL_BODY_TEMPLATE,
+];
