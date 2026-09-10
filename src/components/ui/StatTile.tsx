@@ -16,6 +16,8 @@ export interface StatTileProps {
   /** For deltas where down is good (bodyweight on a cut). */
   invertDelta?: boolean;
   accent?: boolean;
+  /** Abbreviates 17,290 to 17.3k so a big total still fits the tile. */
+  compact?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -29,6 +31,7 @@ export function StatTile({
   delta,
   invertDelta = false,
   accent = false,
+  compact = false,
   onPress,
   style,
 }: StatTileProps) {
@@ -57,6 +60,7 @@ export function StatTile({
         suffix={suffix}
         variant="numericLarge"
         color={accent ? palette.accent : palette.textPrimary}
+        compact={compact}
         style={styles.value}
       />
 

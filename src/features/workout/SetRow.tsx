@@ -125,19 +125,31 @@ export const SetRow = memo(function SetRow({
     onCommit();
   };
 
-  const commitWeight = () => {
-    editing.current = false;
-    const parsed = parseFloat(weightText.replace(',', '.'));
-    const value = Number.isFinite(parsed) ? parsed : 0;
-    onChange({ weight: value });
-    onCommit();
+  const parseWeight = (text: string) => {
+    const parsed = parseFloat(text.replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const commitReps = () => {
+  const parseReps = (text: string) => {
+    const parsed = parseInt(text, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  // Every keystroke updates the store (cheap, in memory) but only blur writes
+  // to SQLite. Deferring both would mean tapping the tick straight after typing
+  // could log the previous value if blur has not landed yet.
+  const changeWeight = (text: string) => {
+    setWeightText(text);
+    onChange({ weight: parseWeight(text) });
+  };
+
+  const changeReps = (text: string) => {
+    setRepsText(text);
+    onChange({ reps: parseReps(text) });
+  };
+
+  const commit = () => {
     editing.current = false;
-    const parsed = parseInt(repsText, 10);
-    const value = Number.isFinite(parsed) ? parsed : 0;
-    onChange({ reps: value });
     onCommit();
   };
 
@@ -187,11 +199,11 @@ export const SetRow = memo(function SetRow({
           <View style={styles.inputCell}>
             <TextInput
               value={weightText}
-              onChangeText={setWeightText}
+              onChangeText={changeWeight}
               onFocus={() => {
                 editing.current = true;
               }}
-              onBlur={commitWeight}
+              onBlur={commit}
               keyboardType="decimal-pad"
               placeholder={previous ? trim(previous.weight) : '0'}
               placeholderTextColor={palette.textTertiary}
@@ -206,11 +218,11 @@ export const SetRow = memo(function SetRow({
           <View style={styles.inputCell}>
             <TextInput
               value={repsText}
-              onChangeText={setRepsText}
+              onChangeText={changeReps}
               onFocus={() => {
                 editing.current = true;
               }}
-              onBlur={commitReps}
+              onBlur={commit}
               keyboardType="number-pad"
               placeholder={previous ? String(previous.reps) : '0'}
               placeholderTextColor={palette.textTertiary}
@@ -311,32 +323,33 @@ function CompleteButton({
   );
 }
 
-/** Column headings. Kept in this file so the widths can never drift apart. */
+/** Column headings. Kept in this file so the widths can never drift apart
+ *  from the cells they label. */
 export function SetRowHeader({ unit }: { unit: string }) {
   return (
     <View style={[styles.row, styles.headerRow]}>
-      <View style={styles.indexCell}>
+      <View style={[styles.indexCell, styles.headerCell]}>
         <Text variant="overline" color="tertiary" style={styles.headerText}>
           Set
         </Text>
       </View>
-      <View style={styles.previousCell}>
+      <View style={[styles.previousCell, styles.headerCell]}>
         <Text variant="overline" color="tertiary" style={styles.headerText}>
           Prev
         </Text>
       </View>
-      <View style={styles.inputCell}>
+      <View style={[styles.inputCell, styles.headerCell]}>
         <Text variant="overline" color="tertiary" style={styles.headerText}>
           {unit}
         </Text>
       </View>
-      <View style={styles.inputCell}>
+      <View style={[styles.inputCell, styles.headerCell]}>
         <Text variant="overline" color="tertiary" style={styles.headerText}>
           Reps
         </Text>
       </View>
-      <View style={styles.plateCell} />
-      <View style={styles.checkCell} />
+      <View style={[styles.plateCell, styles.headerCell]} />
+      <View style={[styles.checkCell, styles.headerCell]} />
     </View>
   );
 }
@@ -359,12 +372,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
-    paddingVertical: 5,
+    paddingVertical: 3,
     paddingHorizontal: space.md,
     borderRadius: radius.sm,
   },
   headerRow: {
-    paddingVertical: 2,
+    paddingVertical: 0,
+    paddingBottom: 2,
+  },
+  // Headers only need to label the column, not reserve a row's worth of height.
+  headerCell: {
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerText: {
     fontSize: 10,

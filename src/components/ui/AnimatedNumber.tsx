@@ -31,9 +31,24 @@ export interface AnimatedNumberProps {
   bouncy?: boolean;
   /** Thousands separators. Off for timers and reps. */
   grouped?: boolean;
+  /** Renders 17,290 as 17.3k. For tiles where a full number would overflow. */
+  compact?: boolean;
 }
 
-function format(value: number, decimals: number, grouped: boolean, prefix: string, suffix: string) {
+function format(
+  value: number,
+  decimals: number,
+  grouped: boolean,
+  prefix: string,
+  suffix: string,
+  compact: boolean,
+) {
+  'worklet';
+  if (compact && Math.abs(value) >= 1000) {
+    const scaled = Math.abs(value) >= 1_000_000 ? value / 1_000_000 : value / 1000;
+    const unit = Math.abs(value) >= 1_000_000 ? 'M' : 'k';
+    return `${prefix}${scaled.toFixed(1)}${unit}${suffix}`;
+  }
   const fixed = value.toFixed(decimals);
   if (!grouped) return `${prefix}${fixed}${suffix}`;
   const [whole, fraction] = fixed.split('.');
@@ -63,6 +78,7 @@ export function AnimatedNumber({
   style,
   bouncy = false,
   grouped = true,
+  compact = false,
 }: AnimatedNumberProps) {
   const animated = useSharedValue(value);
 
@@ -73,13 +89,13 @@ export function AnimatedNumber({
   }, [value, bouncy, animated]);
 
   const animatedProps = useAnimatedProps(() => {
-    const text = format(animated.value, decimals, grouped, prefix, suffix);
+    const text = format(animated.value, decimals, grouped, prefix, suffix, compact);
     return { text, defaultValue: text };
   });
 
   const target = useMemo(
-    () => format(value, decimals, grouped, prefix, suffix),
-    [value, decimals, grouped, prefix, suffix],
+    () => format(value, decimals, grouped, prefix, suffix, compact),
+    [value, decimals, grouped, prefix, suffix, compact],
   );
 
   const textStyle = [typography[variant], styles.text, { color }, style];

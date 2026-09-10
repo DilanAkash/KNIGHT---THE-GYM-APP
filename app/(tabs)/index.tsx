@@ -180,6 +180,7 @@ export default function TodayScreen() {
             value={overview?.volumeThisWeek ?? 0}
             suffix={` ${unit}`}
             icon="barChart"
+            compact
             delta={volumeDelta}
           />
           <StatTile

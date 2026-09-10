@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Appear } from '@/components/ui/Appear';
 import { Button, IconButton } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/Feedback';
@@ -306,9 +306,35 @@ export default function WorkoutScreen() {
   );
 }
 
-/** Hook wrapper so keep-awake can be toggled from settings. */
+const KEEP_AWAKE_TAG = 'knight-session';
+
+/**
+ * Keeps the screen on for the session, toggleable from settings.
+ *
+ * Uses the imperative API rather than `useKeepAwake` because that hook wants a
+ * stable tag for its whole lifetime — passing `undefined` to disable it leaves
+ * the cleanup trying to release a lock that was never taken, which throws.
+ * Both calls swallow errors: a device (or browser) without wake-lock support
+ * must not take the logger down with it.
+ */
 function useKeepAwakeWhen(enabled: boolean) {
-  useKeepAwake(enabled ? 'knight-session' : undefined);
+  useEffect(() => {
+    if (!enabled) return;
+    let released = false;
+
+    void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {
+      released = true;
+    });
+
+    return () => {
+      if (released) return;
+      try {
+        void Promise.resolve(deactivateKeepAwake(KEEP_AWAKE_TAG)).catch(() => undefined);
+      } catch {
+        // Lock was never granted; nothing to release.
+      }
+    };
+  }, [enabled]);
 }
 
 function LiveStat({

@@ -488,8 +488,9 @@ export async function finishWorkout(workoutId: string, durationSeconds: number):
           achievedAt: now,
         };
         await db.runAsync(
-          `INSERT INTO personal_records (id, exercise_id, type, value, weight, reps, workout_id, achieved_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+          `INSERT INTO personal_records
+             (id, exercise_id, type, value, weight, reps, workout_id, achieved_at, is_baseline)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
           [
             record.id,
             record.exerciseId,
@@ -499,9 +500,15 @@ export async function finishWorkout(workoutId: string, durationSeconds: number):
             record.reps,
             record.workoutId,
             record.achievedAt,
+            existing ? 0 : 1,
           ],
         );
-        records.push({ ...record, exerciseName: entry.name, previousValue: existing?.value ?? null });
+        // The first time an exercise is logged it sets a baseline, not a
+        // record — you haven't beaten anything yet. Store it so the next
+        // session has something to compare against, but don't celebrate it.
+        if (existing) {
+          records.push({ ...record, exerciseName: entry.name, previousValue: existing.value });
+        }
       }
     }
 
@@ -519,8 +526,30 @@ export async function finishWorkout(workoutId: string, durationSeconds: number):
     totalSets: rows.filter((r) => r.type !== 'warmup').length,
     totalReps,
     durationSeconds,
-    records,
+    records: headlineRecords(records),
   };
+}
+
+/**
+ * One record per exercise for the summary.
+ *
+ * A heavy top set usually breaks e1RM, heaviest-weight and session-volume at
+ * once. Three cards saying the same thing about one lift devalues all of them,
+ * so only the most meaningful survives.
+ */
+const RECORD_PRIORITY: Record<PrType, number> = { e1rm: 0, weight: 1, reps: 2, volume: 3 };
+
+function headlineRecords(records: NewRecord[]): NewRecord[] {
+  const best = new Map<string, NewRecord>();
+  for (const record of records) {
+    const current = best.get(record.exerciseId);
+    if (!current || RECORD_PRIORITY[record.type] < RECORD_PRIORITY[current.type]) {
+      best.set(record.exerciseId, record);
+    }
+  }
+  return [...best.values()].sort(
+    (a, b) => RECORD_PRIORITY[a.type] - RECORD_PRIORITY[b.type] || b.value - a.value,
+  );
 }
 
 export async function discardWorkout(workoutId: string): Promise<void> {
@@ -547,7 +576,8 @@ export async function listWorkouts(limit = 50, offset = 0): Promise<WorkoutSumma
             (SELECT COUNT(*) FROM sets s
                JOIN workout_exercises we2 ON we2.id = s.workout_exercise_id
               WHERE we2.workout_id = w.id AND s.completed = 1) AS set_count,
-            (SELECT COUNT(*) FROM personal_records pr WHERE pr.workout_id = w.id) AS pr_count
+            (SELECT COUNT(DISTINCT pr.exercise_id) FROM personal_records pr
+              WHERE pr.workout_id = w.id AND pr.is_baseline = 0) AS pr_count
        FROM workouts w
       WHERE w.status = 'completed'
       ORDER BY w.started_at DESC
@@ -632,7 +662,7 @@ export async function getCompletedSummary(workoutId: string): Promise<CompletedS
   }>(
     `SELECT pr.*, e.name FROM personal_records pr
        JOIN exercises e ON e.id = pr.exercise_id
-      WHERE pr.workout_id = ?
+      WHERE pr.workout_id = ? AND pr.is_baseline = 0
       ORDER BY pr.value DESC;`,
     [workoutId],
   );
@@ -642,18 +672,20 @@ export async function getCompletedSummary(workoutId: string): Promise<CompletedS
     totalSets: sets.length,
     totalReps,
     exerciseCount: grouped.size,
-    records: recordRows.map((r) => ({
-      id: r.id,
-      exerciseId: r.exercise_id,
-      type: r.type as PrType,
-      value: r.value,
-      weight: r.weight,
-      reps: r.reps,
-      workoutId,
-      achievedAt: r.achieved_at,
-      exerciseName: r.name,
-      previousValue: null,
-    })),
+    records: headlineRecords(
+      recordRows.map((r) => ({
+        id: r.id,
+        exerciseId: r.exercise_id,
+        type: r.type as PrType,
+        value: r.value,
+        weight: r.weight,
+        reps: r.reps,
+        workoutId,
+        achievedAt: r.achieved_at,
+        exerciseName: r.name,
+        previousValue: null,
+      })),
+    ),
     breakdown: [...grouped.values()].map((entry) => ({
       name: entry.name,
       sets: entry.sets,

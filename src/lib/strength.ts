@@ -131,5 +131,7 @@ export function formatDurationLong(totalSeconds: number): string {
   const hours = Math.floor(s / 3600);
   const minutes = Math.round((s % 3600) / 60);
   if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  // Rounding to the nearest minute would render a 40 second session as "0m".
+  if (minutes === 0) return `${s}s`;
   return `${minutes}m`;
 }

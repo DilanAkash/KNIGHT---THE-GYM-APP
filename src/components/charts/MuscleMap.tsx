@@ -55,81 +55,85 @@ export function MuscleMap({ load, view, width = 220, ceiling = 12, onSelect }: M
       <Svg width={width} height={height} viewBox="0 0 100 200">
         {view === 'front' ? (
           <G>
-            <Circle cx={50} cy={13} r={9.5} {...neutral} />
-            <Rect x={45.5} y={21} width={9} height={6} rx={2.5} {...neutral} />
+            <Circle cx={50} cy={12} r={8.5} {...neutral} />
+            <Rect x={46} y={19} width={8} height={7} rx={3} {...neutral} />
 
-            <Ellipse cx={29.5} cy={36} rx={8.5} ry={7.5} {...muscle('front_delts')} />
-            <Ellipse cx={70.5} cy={36} rx={8.5} ry={7.5} {...muscle('front_delts')} />
+            {/* Delts sit outboard of the chest with a gap. Overlapping them
+                turns the whole shoulder line into one unreadable slab. */}
+            <Ellipse cx={26} cy={35} rx={7.5} ry={7} {...muscle('front_delts')} />
+            <Ellipse cx={74} cy={35} rx={7.5} ry={7} {...muscle('front_delts')} />
 
-            <Rect x={35.5} y={28.5} width={13.5} height={20} rx={5} {...muscle('chest')} />
-            <Rect x={51} y={28.5} width={13.5} height={20} rx={5} {...muscle('chest')} />
+            <Rect x={36} y={27.5} width={13} height={20} rx={5} {...muscle('chest')} />
+            <Rect x={51} y={27.5} width={13} height={20} rx={5} {...muscle('chest')} />
 
-            <Ellipse cx={23} cy={55} rx={6} ry={11} {...muscle('biceps')} />
-            <Ellipse cx={77} cy={55} rx={6} ry={11} {...muscle('biceps')} />
+            <Ellipse cx={22} cy={55} rx={5.5} ry={11} {...muscle('biceps')} />
+            <Ellipse cx={78} cy={55} rx={5.5} ry={11} {...muscle('biceps')} />
 
-            <Ellipse cx={18.5} cy={78} rx={5.5} ry={13} {...muscle('forearms')} />
-            <Ellipse cx={81.5} cy={78} rx={5.5} ry={13} {...muscle('forearms')} />
+            <Ellipse cx={17.5} cy={79} rx={5} ry={12.5} {...muscle('forearms')} />
+            <Ellipse cx={82.5} cy={79} rx={5} ry={12.5} {...muscle('forearms')} />
 
-            <Circle cx={16} cy={94} r={4.5} {...neutral} />
-            <Circle cx={84} cy={94} r={4.5} {...neutral} />
+            <Circle cx={15.5} cy={95} r={4} {...neutral} />
+            <Circle cx={84.5} cy={95} r={4} {...neutral} />
 
-            <Rect x={42} y={50.5} width={16} height={27} rx={5} {...muscle('abs')} />
-            <Rect x={34.5} y={52.5} width={6.5} height={24} rx={3} {...muscle('obliques')} />
-            <Rect x={59} y={52.5} width={6.5} height={24} rx={3} {...muscle('obliques')} />
+            <Rect x={42} y={49.5} width={16} height={28} rx={5} {...muscle('abs')} />
+            <Rect x={35} y={51.5} width={6} height={24} rx={3} {...muscle('obliques')} />
+            <Rect x={59} y={51.5} width={6} height={24} rx={3} {...muscle('obliques')} />
 
             <Rect x={37} y={78.5} width={26} height={8} rx={4} {...neutral} />
 
-            <Ellipse cx={40} cy={108} rx={11} ry={24} {...muscle('quads')} />
-            <Ellipse cx={60} cy={108} rx={11} ry={24} {...muscle('quads')} />
+            <Ellipse cx={41} cy={109} rx={8.5} ry={23} {...muscle('quads')} />
+            <Ellipse cx={59} cy={109} rx={8.5} ry={23} {...muscle('quads')} />
 
-            <Circle cx={40} cy={136} r={6} {...neutral} />
-            <Circle cx={60} cy={136} r={6} {...neutral} />
+            <Circle cx={41} cy={137} r={5.5} {...neutral} />
+            <Circle cx={59} cy={137} r={5.5} {...neutral} />
 
-            <Ellipse cx={39.5} cy={160} rx={8} ry={17} {...muscle('calves')} />
-            <Ellipse cx={60.5} cy={160} rx={8} ry={17} {...muscle('calves')} />
+            <Ellipse cx={40.5} cy={160} rx={7} ry={16} {...muscle('calves')} />
+            <Ellipse cx={59.5} cy={160} rx={7} ry={16} {...muscle('calves')} />
 
-            <Rect x={34} y={181} width={11} height={8} rx={3.5} {...neutral} />
-            <Rect x={55} y={181} width={11} height={8} rx={3.5} {...neutral} />
+            <Rect x={35} y={180} width={11} height={8} rx={3.5} {...neutral} />
+            <Rect x={54} y={180} width={11} height={8} rx={3.5} {...neutral} />
           </G>
         ) : (
           <G>
-            <Circle cx={50} cy={13} r={9.5} {...neutral} />
+            <Circle cx={50} cy={12} r={8.5} {...neutral} />
 
-            <Path d="M50 20.5 L65 32 L58.5 47 L41.5 47 L35 32 Z" {...muscle('traps')} />
+            {/* Traps: a kite from the neck out to the shoulder line. */}
+            <Path d="M50 19 L63 31 L57.5 46 L42.5 46 L37 31 Z" {...muscle('traps')} />
 
-            <Ellipse cx={29.5} cy={36} rx={8.5} ry={7.5} {...muscle('rear_delts')} />
-            <Ellipse cx={70.5} cy={36} rx={8.5} ry={7.5} {...muscle('rear_delts')} />
+            <Ellipse cx={26} cy={35} rx={7.5} ry={7} {...muscle('rear_delts')} />
+            <Ellipse cx={74} cy={35} rx={7.5} ry={7} {...muscle('rear_delts')} />
 
-            <Path d="M36 35 L44 35 L46 64 L36.5 70 L30.5 50 Z" {...muscle('lats')} />
-            <Path d="M64 35 L56 35 L54 64 L63.5 70 L69.5 50 Z" {...muscle('lats')} />
+            {/* Lats taper from the armpit down into the waist. */}
+            <Path d="M37 34 L44.5 34 L45.5 63 L37.5 69 L32 49 Z" {...muscle('lats')} />
+            <Path d="M63 34 L55.5 34 L54.5 63 L62.5 69 L68 49 Z" {...muscle('lats')} />
 
-            <Rect x={42} y={47.5} width={16} height={13} rx={4} {...muscle('upper_back')} />
+            <Rect x={43} y={46.5} width={14} height={13} rx={4} {...muscle('upper_back')} />
 
-            <Ellipse cx={23} cy={55} rx={6} ry={11} {...muscle('triceps')} />
-            <Ellipse cx={77} cy={55} rx={6} ry={11} {...muscle('triceps')} />
+            <Ellipse cx={22} cy={55} rx={5.5} ry={11} {...muscle('triceps')} />
+            <Ellipse cx={78} cy={55} rx={5.5} ry={11} {...muscle('triceps')} />
 
-            <Ellipse cx={18.5} cy={78} rx={5.5} ry={13} {...muscle('forearms')} />
-            <Ellipse cx={81.5} cy={78} rx={5.5} ry={13} {...muscle('forearms')} />
+            <Ellipse cx={17.5} cy={79} rx={5} ry={12.5} {...muscle('forearms')} />
+            <Ellipse cx={82.5} cy={79} rx={5} ry={12.5} {...muscle('forearms')} />
 
-            <Circle cx={16} cy={94} r={4.5} {...neutral} />
-            <Circle cx={84} cy={94} r={4.5} {...neutral} />
+            <Circle cx={15.5} cy={95} r={4} {...neutral} />
+            <Circle cx={84.5} cy={95} r={4} {...neutral} />
 
-            <Rect x={41.5} y={62} width={17} height={15} rx={5} {...muscle('lower_back')} />
+            <Rect x={42} y={61} width={16} height={16} rx={5} {...muscle('lower_back')} />
 
-            <Ellipse cx={41.5} cy={87} rx={10} ry={9.5} {...muscle('glutes')} />
-            <Ellipse cx={58.5} cy={87} rx={10} ry={9.5} {...muscle('glutes')} />
+            <Ellipse cx={42} cy={87} rx={8.5} ry={9} {...muscle('glutes')} />
+            <Ellipse cx={58} cy={87} rx={8.5} ry={9} {...muscle('glutes')} />
 
-            <Ellipse cx={40} cy={115} rx={11} ry={21} {...muscle('hamstrings')} />
-            <Ellipse cx={60} cy={115} rx={11} ry={21} {...muscle('hamstrings')} />
+            <Ellipse cx={41} cy={116} rx={8.5} ry={20} {...muscle('hamstrings')} />
+            <Ellipse cx={59} cy={116} rx={8.5} ry={20} {...muscle('hamstrings')} />
 
-            <Circle cx={40} cy={139} r={6} {...neutral} />
-            <Circle cx={60} cy={139} r={6} {...neutral} />
+            <Circle cx={41} cy={140} r={5.5} {...neutral} />
+            <Circle cx={59} cy={140} r={5.5} {...neutral} />
 
-            <Ellipse cx={39.5} cy={161} rx={8} ry={17} {...muscle('calves')} />
-            <Ellipse cx={60.5} cy={161} rx={8} ry={17} {...muscle('calves')} />
+            <Ellipse cx={40.5} cy={161} rx={7} ry={16} {...muscle('calves')} />
+            <Ellipse cx={59.5} cy={161} rx={7} ry={16} {...muscle('calves')} />
 
-            <Rect x={34} y={181} width={11} height={8} rx={3.5} {...neutral} />
-            <Rect x={55} y={181} width={11} height={8} rx={3.5} {...neutral} />
+            <Rect x={35} y={180} width={11} height={8} rx={3.5} {...neutral} />
+            <Rect x={54} y={180} width={11} height={8} rx={3.5} {...neutral} />
           </G>
         )}
       </Svg>

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePathname } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -16,6 +17,9 @@ import { useRestTimer } from '@/store/restTimer';
 import { formatDuration } from '@/lib/strength';
 import { layout, palette, radius, space, spring, timing } from '@/theme';
 
+/** Height of the logger's Finish bar: button plus its vertical padding. */
+const FINISH_BAR_HEIGHT = 56 + 12 + 12;
+
 /**
  * Global rest timer.
  *
@@ -26,7 +30,12 @@ import { layout, palette, radius, space, spring, timing } from '@/theme';
 export function RestTimerHost() {
   const { endsAt, remaining, durationSeconds, context, tick, stop, adjust } = useRestTimer();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const active = endsAt !== null;
+
+  // The logger replaces the tab bar with its own Finish bar, which is taller.
+  // Sitting the pill at the tab bar height there would clip the button.
+  const bottomBar = pathname.startsWith('/workout') ? FINISH_BAR_HEIGHT : layout.tabBarHeight;
   const reveal = useSharedValue(0);
 
   useEffect(() => {
@@ -54,7 +63,7 @@ export function RestTimerHost() {
     <Animated.View
       style={[
         styles.wrap,
-        { bottom: Math.max(insets.bottom, 10) + layout.tabBarHeight + space.sm },
+        { bottom: Math.max(insets.bottom, 10) + bottomBar + space.sm },
         revealStyle,
       ]}
       pointerEvents="box-none"

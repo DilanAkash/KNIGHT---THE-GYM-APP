@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
-import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Section } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/Feedback';

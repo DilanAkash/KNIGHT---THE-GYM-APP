@@ -180,4 +180,14 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    id: 2,
+    name: 'personal_record_baseline_flag',
+    sql: `
+      -- The first record for an exercise is a baseline, not an achievement.
+      -- Flagging it keeps it out of celebrations while still letting later
+      -- sessions compare against it.
+      ALTER TABLE personal_records ADD COLUMN is_baseline INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

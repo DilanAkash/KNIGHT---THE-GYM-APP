@@ -145,6 +145,7 @@ export default function ProgressScreen() {
                 value={overview?.volumeThisWeek ?? 0}
                 suffix={` ${unit}`}
                 icon="barChart"
+                compact
                 delta={volumeDelta}
                 accent
               />
