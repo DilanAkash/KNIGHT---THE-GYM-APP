@@ -65,12 +65,34 @@ npm run typecheck  # tsc --noEmit
 npm run assets     # regenerate app icons and the rest-timer chime
 ```
 
-### Building an APK
+### Getting an installable APK
 
-Install the EAS CLI once, then build in the cloud — no local Android SDK:
+Built in Expo's cloud, so no Android SDK is needed locally. One-time setup:
 
 ```bash
-npx eas-cli build --platform android --profile preview
+npx eas-cli login
+npx eas-cli init
+```
+
+`init` links the project to your Expo account and writes an `extra.eas.projectId`
+into `app.json` — commit that. Then, any time you want a new build:
+
+```bash
+npm run build:apk
+```
+
+It uploads the project, builds for ~10-20 minutes, and prints a download URL.
+Open that URL on your phone, download, and install. Android will ask you to
+allow installs from your browser the first time.
+
+The `preview` profile is set to `"buildType": "apk"` on purpose — EAS defaults
+Android builds to an `.aab`, which the Play Store accepts but a phone cannot
+install directly.
+
+Building locally instead needs Android Studio and the SDK (~10 GB), then:
+
+```bash
+npm run build:local
 ```
 
 ---
